@@ -1,0 +1,93 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Using PowerShell Desired State Configuration to check for and install applications | Justin Galston</title>
+
+
+
+
+</head>
+
+<body class="single single-post postid-35 single-format-standard custom-background mp6 customizer-styles-applied highlander-enabled highlander-light">
+
+
+
+                        
+                
+<div id="post-35" class="post-35 post type-post status-publish format-standard hentry category-uncategorized tag-4-0 tag-desired-state-configuration tag-dsc tag-powershell tag-wave-kit tag-windows tag-windows-management-framework">
+
+	
+	<h1 class="title"><a href="https://justingalston.wordpress.com/2014/06/11/using-powershell-desired-state-configuration-to-check-for-and-install-applications/" rel="bookmark" title="Using PowerShell Desired State Configuration to check for and install&nbsp;applications">Using PowerShell Desired State Configuration to check for and install&nbsp;applications</a></h1>
+	<a class="date" href="https://justingalston.wordpress.com/2014/06/11/using-powershell-desired-state-configuration-to-check-for-and-install-applications/">
+		<span class="day">11</span>
+		<span class="month">Jun</span>
+	</a>
+
+	<div class="entry">
+		<p>Hello,</p>
+<p>I&#8217;ve been playing a lot with PowerShell Desired State Configuration in my home lab in order to install apps I use on a regular basis.</p>
+<p>I thought I&#8217;d do a tutorial of what I did.</p>
+<p> </p>
+<p>What is PowerShell Desired State Configuration?</p>
+<p> </p>
+<p>Basically it&#8217;s a way to use PowerShell to check for specific configuration conditions and act on those conditions.  You can set an exact specific configuration you want and push it to multiple machines via the MOF file.</p>
+<p>Requirements:</p>
+<p>Windows Powershell 4.0. Powershell 4.0 is native to Windows 8.1 and Windows Server 2012R2.  You can install it on earlier operating systems by installing.  Windows Management Framework 4.0 (WMF 4.0) by following the following link: <a title="Windows Management Framework 4.0" href="http://www.microsoft.com/en-us/download/details.aspx?id=40855"> http://www.microsoft.com/en-us/download/details.aspx?id=40855</a></p>
+<p>You also need to have the DSC Resource Kits.  You can download them by following the following link:<a title="All DSC Resource Kits" href="http://gallery.technet.microsoft.com/scriptcenter/DSC-Resource-Kit-All-c449312d"> http://gallery.technet.microsoft.com/scriptcenter/DSC-Resource-Kit-All-c449312d</a></p>
+<p>Once you have them downloaded you want to unzip them to where your PowerShell Modules live:</p>
+<p><strong><em>$env:ProgramFiles\WindowsPowerShell\Modules folder</em></strong></p>
+<p>Please note as of right now these modules all have an x before them meaning they are experimental and not supported so you use them at your own risk.  I have a home lab so it&#8217;s not a big deal if something breaks but in production this could be a bigger issue if you ever need support from Microsoft.  </p>
+<p>Orca</p>
+<p>Orca is a part of the Windows 8.0/8.1 SDK so you can get it from the following link: <a title="Windows 8.1 SDK" href="http://msdn.microsoft.com/en-us/windows/bg162891.aspx"> http://msdn.microsoft.com/en-us/windows/bg162891.aspx</a></p>
+<p>I&#8217;ll show you the script and explain it:</p>
+<p> </p>
+<p>Configuration InstallApps<br />{</p>
+<p>Node localhost<br /> {<br /> Package 7Zip<br /> {<br /> Ensure = &#8220;Present&#8221;<br /> Path = &#8220;$Env:SystemDrive\InstallApps\7z920-x64.msi&#8221;<br /> Name = &#8220;7Zip&#8221;<br /> ProductId = &#8220;23170F69-40C1-2702-0920-000001000000&#8221;<br /> }</p>
+<p>Package FlashIE<br /> {<br /> Ensure = &#8220;Present&#8221;<br /> Path = &#8220;$Env:SystemDrive\InstallApps\install_flash_player_13_active_x.msi&#8221;<br /> Name = &#8220;FlashIE&#8221;<br /> ProductId = &#8220;3799ACD7-66E2-4749-A851-95E1193B217D&#8221;<br /> }</p>
+<p>Package Firefox<br /> {<br /> Ensure = &#8220;Present&#8221;<br /> Path = &#8220;$Env:SystemDrive\InstallApps\Firefox-28.0-en-US.msi&#8221;<br /> Name = &#8220;Firefox&#8221;<br /> ProductID = &#8220;9582990D-A39F-46B6-AEFB-888585659665&#8221; }<br /> Package FlashFF<br /> {<br /> Ensure = &#8220;Present&#8221;<br /> Path = &#8220;$Env:SystemDrive\InstallApps\install_flash_player_13_plugin.msi&#8221;<br /> Name = &#8220;FlashFF&#8221;<br /> ProductId = &#8220;38C8C329-5AB3-480C-86FD-C18D10FBD39A&#8221;<br /> DependsOn = &#8220;[Package]Firefox&#8221;<br /> }<br /> Package Java<br /> {<br /> Ensure = &#8220;Present&#8221;<br /> Path = &#8220;$Env:SystemDrive\InstallApps\jre1.7.0_60-c.msi&#8221;<br /> Name = &#8220;Java&#8221; ProductId = &#8220;26A24AE4-039D-4CA4-87B4-2F03217060FF&#8221; } <br /> }<br />}<br />InstallApps</p>
+<p>Ensure = &#8220;Present&#8221;  makes sure that the application is present if it is not present the application is installed.</p>
+<p>Path = is the path where the MSI file you want to install lives.  $Env.SystemDrive is the variable for the system drive in my case the C:\Drive</p>
+<p>ProductID is the value used to sign the MSI package, I got this using ORCA. You open the MSI and under the tables column selct property and look for the ProductCode (note the UpgradeCode will NOT work.)</p>
+<p> </p>
+<p><a href="https://justingalston.files.wordpress.com/2014/06/orca.png"><img id="i-71" class="size-full wp-image" src="https://justingalston.files.wordpress.com/2014/06/orca.png?w=650" alt="Image" /></a></p>
+<p>DependsOn makes sure another package is installed before a package is installed if the package it depends on is not installed it will be skipped.</p>
+<p>Gotchas:</p>
+<p>Things you may have to do in order for the script to run correctly:</p>
+<p> </p>
+<p>You may get an error like this:</p>
+<p> </p>
+<p>.\InstallApps.ps1 : File C:\InstallApps.ps1 cannot be loaded because running scripts is disabled on this system<br />For more information, see about_Execution_Policies at <a href="http://go.microsoft.com/fwlink/?LinkID=135170" rel="nofollow">http://go.microsoft.com/fwlink/?LinkID=135170</a>.<br />At line:1 char:1<br />+ .\InstallApps.ps1<br />+ ~~~~~~~~~~~~~~~~~<br /> + CategoryInfo : SecurityError: (:) [], PSSecurityException<br /> + FullyQualifiedErrorId : UnauthorizedAccess</p>
+<p>You may have change the Remote Execution Policy in my lab I did this by using opening an elevated PowerShell and running <em><strong>Set-</strong></em>&#8220;<em><strong>ExecutionPolicy Unrestricted</strong></em><strong>&#8220;</strong><strong> </strong>It&#8217;s a lab so I&#8217;m not worried about security but you can set it back to it&#8217;s default state with <em><strong>Set-</strong></em>&#8220;<em><strong>ExecutionPolicy Restricted</strong></em>&#8220;</p>
+<p>You may also need enable Windows Remote Management (WinRM) you can do this by typing &#8220;<em><strong>WinRM Quickconfi</strong><strong>g</strong></em>&#8221; in an elevated PowerShell.  If you need to set WinRM back to it&#8217;s default state here&#8217;s what you need to do:</p>
+<p>In an elevated PowerShell type &#8220;<em><strong>Disable-PSRemoting</strong></em>&#8220;</p>
+<p>It will give you a list of things to do:</p>
+<p> </p>
+<p>WARNING: Disabling the session configurations does not undo all the changes made by the Enable-PSRemoting or<br />Enable-PSSessionConfiguration cmdlet. You might have to manually undo the changes by following these steps:<br /> 1. Stop and disable the WinRM service.<br /> 2. Delete the listener that accepts requests on any IP address.<br /> 3. Disable the firewall exceptions for WS-Management communications.<br /> 4. Restore the value of the LocalAccountTokenFilterPolicy to 0, which restricts remote access to members of the<br />Administrators group on the computer.</p>
+<p>We are going to stop and disable WinRM service last since the other steps will probably depend on it being enabled and started.</p>
+<p>First we will disable the WinRM listener in PowerShell</p>
+<p>In an elevated PowerShell type &#8220;<em><strong>winrm enumerate</strong></em><strong style="font-style:normal;"> winrm/config/listener</strong>&#8221; to see what&#8217;s listening for WinRM</p>
+<p>In an elevated PowerShell type &#8220;<em><strong>winrm delete</strong></em><strong style="font-style:normal;"> winrm/config/listener?address=*+transport=HTTP</strong>&#8221; to delete the firewall</p>
+<p>In an elevated PowerShell type &#8220;<em><strong>winrm enumerate</strong></em><strong> winrm/config/listener</strong>&#8221; to verify nothing is still listening for WinRM</p>
+<p>Next in WIndows Firewall we will delete the exception for WinRM (WS-Managment)</p>
+<p>Next we will go to Services.MSC and find WinRM (WS-Management) we will set it&#8217;s startup type to disabled and we will stop the service.  You can also do it in an elevated PowerShell by typing:</p>
+<p>&#8220;<em><strong>Stop-Service</strong></em><strong> winrm</strong>&#8220;</p>
+<p>&#8220;<em><strong>Set-Service -Name winrm -StartupType</strong></em><strong> Disabled</strong>&#8220;</p>
+<p>The last step :</p>
+<p>Restore the value of the LocalAccountTokenFilterPolicy to 0, which restricts remote access to members of the<br />Administrators group on the computer.</p>
+<p>In an elevated PowerShell type &#8220;<em><strong>Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -Name</strong></em><strong> LocalAc</strong>&#8220;</p>
+<p>The process is more heavily documented here but I thought I would break it down:</p>
+<p><a title="How to disable changes made by PSRemoting" href="http://blogs.technet.com/b/bshukla/archive/2011/04/28/how-revert-changes-made-by-enable-psremoting.aspx">http://blogs.technet.com/b/bshukla/archive/2011/04/28/how-revert-changes-made-by-enable-psremoting.aspx</a></p>
+<p>I put my DSC script and all the MSI&#8217;s it relied on in a folder in the root of the C:\drive in a folder called InstallApps which is what I named the script.</p>
+<p>I navigated to the directory in an elevated PowerShell by using Set-Location &#8220;<em><strong>C:\InstallApps</strong>&#8220;</em></p>
+<p>Once there I used &#8220;<strong>.\InstallApps.PS1&#8243;</strong> to begin the script.</p>
+<p>The script will make a new folder called InstallApps which will store the .MOF file</p>
+<p>Once you have the .MOF file you can type</p>
+<p>Start-DscConfiguration -Path &#8220;C:\InstallApps\InstallApps\&#8221;-Wait -Verbose </p>
+<p>Your may path may vary but it&#8217;s where the .MOF file lives.</p>
+<p>Wait tells the PowerShell not to accept commands from the console until it has finished the job.  Verbose outputs status messages to the screen so that you can tell what&#8217;s going on.</p>
+<p>It will go through and check if applications are installed and install them as needed.  </p>
+<p>This post is mostly for my own memory but if anyone needs help who comes across this I&#8217;d be more than glad to try and help them.</p>
+<p> </p>
+</body>
+</html>
