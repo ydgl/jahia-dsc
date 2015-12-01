@@ -1,0 +1,12 @@
+{
+    'jahia_modules':[
+        'apec-template-bootstrap-responsive',
+        'apec-cachemanager',
+        'apec-modules',
+        'apec-ckeditor'
+    ]
+}
+
+
+
+

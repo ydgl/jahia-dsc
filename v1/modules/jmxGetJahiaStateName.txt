@@ -1,0 +1,4 @@
+#Require : CATALINA_OPTS with -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.local.only=true -Dcom.sun.management.jmxremote.port=2405 -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.authenticate=false
+open localhost:5154
+domain Catalina
+get -b Catalina:J2EEApplication=none,J2EEServer=none,j2eeType=WebModule,name=//localhost/ stateName

@@ -1,0 +1,74 @@
+###############################################################################
+###############################################################################
+
+Préparation de la livraison
+
+
+1/ Les pages à livrer sont sur cmsint1.pprod-apec.fr C:\Jahia_Livraisons\1-A_livrer_en_recette
+-------------------------------------------------------------------------------
+
+2/ Lorsque une JIRA est corrigée
+-------------------------------------------------------------------------------
+
+2.1/ Créer un répertoire dans C:\Jahia_Livraisons\1-A_livrer_en_recette\(Numéro de version cible)
+    (numéro d'ordre)_(JIRA)
+    Exemple :   1.0.2\9_socle-2085
+                
+    
+2.2/ Dans ce répertoire mettre le zip des pages ou un fichier correspondant à la page modifiée
+    Le nom du zip doit être comme suit
+        (arborescence des pages)#(nom système bloc à changer).zip   : Remplacement du "bloc à changer"
+        (arborescence des noeuds)[#(nom système bloc)]#DEL.zip      : Suppression d'un noeuds ou d'une page
+        (arborescence des noeuds)[#(nom système bloc)]#NEW.zip      : Création d'un noeud
+        (arborescence des pages).txt                                : Opération manuelle à faire sur la page
+        
+    !!! Merci de bien aller jusqu'au bloc à changer !!!
+
+Exemple :
+    recruteurs_accueil_gerer-vos-offres_creer-une-offre#form_editor.zip
+    recruteurs_accueil_gerer-vos-offres_creer-une-offre.txt avec comme contenu
+        activer "doit être identifiée" dans la page
+    
+
+2.3 / Indiquer les noms des zip dans la description de la JIRA
+
+
+3/ Pour la livraison en recette
+-------------------------------------------------------------------------------
+
+3.1 / Pour chaque JIRA dans C:\Jahia_Livraisons\1-A_livrer_en_recette 
+    appliquer la procédure ci-dessous
+    
+3.2 / Positionner la version corrigé dans la JIRA à la version adéquate
+    Passer la JIRA en recette
+    
+3.3 / Poser le répertoire à "2-Fait_en_recette"
+    
+
+4/ Livraison en prod
+-------------------------------------------------------------------------------
+
+4.1 / Faire l'assembly
+
+4.2 / Au moment ou la construction de l'assembly demande des infos supplémentaire, ajouter le repertoire avec
+        le contenu de 2-Fait_en_recette
+
+
+###############################################################################
+###############################################################################
+
+Procédure d'application pour chaque patch ...
+1/ Importer le zip sous la page cible (bien vérifier la page cible avec le nom système)
+2/ Sélectionner le bloc supérieur au bloc à changer (bloc1, chenillard)
+3/ Sélectionner le menu edit (clic droit), puis l'onglet ordre
+4/ Sélection le bloc à changer, cliquer sur enlever, sauvegarder
+5/ Publier la page pour publier la suppression
+6/ Aller dans la page à importer
+7/ Sélectionner le bloc à remplacer dans la page cible
+8/ Faire clic droit : copier
+9/ Dans le bloc supérieur de la page cible(celui identifié au point 2), cliquer sur coller (pas avec la reference)
+10/ Sélectionner la page importé
+11/ Clic droit, supprimer
+12/ Publier la page cible et la page supprimée (éventuellement tout le site en fin de modif)
+
+Ce process prend environ 5 minutes par page.
