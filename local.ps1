@@ -68,6 +68,43 @@ RESSOURCES ###############################################################
 
 https://pwrshell.net/desired-state-configuration-for-linux/
 
+Mes steps ###############################################################
+
+Une lettre pour faire l'ordonnancement
+
+W : Clean (wipe) si !Cold
+O : Stop (O letter)
+D : Deploy
+C : Config
+W : Clean si Cold
+I : Start I Letter
+M : Wait for a master
+m : Wait for slave
+T : Run test
+
+deploy.ps1 -stageVar {a=g;f=d} -host <hostmaster[,host2,host3]> -assembly <assembly> -sequence <master_sequence_without_M>[<slave_sequence>,...] [-forceTypeAssembly type]
+
+Version simple pour commencer
+deploy.ps1 -COULOIR <COULOIR> -host <hostmaster[,host2,host3]> -assembly <assembly> -sequence cf_+_stop_#_+.ps1,cf_cms2_stop_+.ps1,cf_#_deploy_#.ps1,cf_cms1_config_#.ps1,cf_cms2_config_#.ps1
+
+Format du fichier de conf : cf-<host>-<confName>-<COULOIR>-<clusterNodeType>.ps1
+
+<master_sequence_without_M>[<slave_sequence>,...]
+
+deploy.ps1 -stage prod -host cms1,cms2,cms3 -assembly myassembly.zip -sequence oODCWdcwIMi
+
+grappe.ps1 -stage int1 -nodes [{[cms1prod],master.ps1},{[cms2prod,cms3prod],slave.ps1}] -assembly myassembly.zip -sequence oODCWdcwIMi
+
+Version evoluée à travailler
+dscc.ps1 -stage <name> -nodeType master -nodeName hostmaster -nodeType slave -nodeName host2,host3 \
+    -nodeType nginx -nodeName host4,host5 -nodeType phantom -nodeName host6,host7,host8 -assembly <assembly> -stateSequence conf1,conf2,conf3,...
+
+    Format des fichiers de config nc_<nodeName>_<stateName>_<stage>_<nodeType>.ps1
+    Les variable peuvent être   # : Première valeur
+                                + : Incrément du début à la fin
+                                - : Décrémente de la fin au début
+
+
 #>
 
 
