@@ -14,6 +14,7 @@ Import-Module -Force $PSScriptRoot\nodes_${stage}.psm1
 
 Configuration mof_$stage
 {
+    # Il faut que les chemins soient accessibles sur la source et la destination
     $destinationPathDG = "C:\dgl\dst\cfg.properties"
     $sourcePathDG = "D:\jahia-dsc\src\cfg.properties"
 
@@ -52,8 +53,14 @@ Configuration mof_$stage
 Invoke-Expression "mof_${stage}"
 
 # Start-DscConfiguration -Path mycfg -wait -Verbose
-  
-# Start-DscConfiguration -Path mycfg_$stage -wait -Verbose -Credential $mycreds
+
+# $stage = int2
+# $secpasswd = ConvertTo-SecureString "--------" -AsPlainText -Force
+# $mycreds = New-Object System.Management.Automation.PSCredential ("PPROD-APEC.FR\servicesint", $secpasswd)
+# local2.ps1 -stage $stage
+# Get-ChildItem -Path D:\jahia-dsc\mof2_int2\ | ConvertTo-MrMOFv4 -Verbose
+# Start-DscConfiguration -Path mof2_$stage -wait -Verbose -Force -Credential $mycreds
+# 
 
 
 
@@ -109,16 +116,19 @@ POUR AVOIR LES CREDENTIALS
 $secpasswd = ConvertTo-SecureString "--------" -AsPlainText -Force
 $mycreds = New-Object System.Management.Automation.PSCredential ("PPROD-APEC.FR\servicesint", $secpasswd)
 
+Enter-PSSession cms2int2.pprod-apec.fr -Credential $mycreds
+
+gci env: | sort name
 
 PROCEDURE ####################################################################
 
 # Installation et prérequis
 
-1/ Il faut WMF 4.0
+1/ Il faut éviter WMF 4.0
 $PSVersionTable.WSManStackVersion.Major >= 4  sinon Il faut installer WMF 4.0
 Windows6.1-KB2819745-x64-MultiPkg.msu pour windows 7 SP 1
 
-Pour installer WMF 5.0
+Mieux vaut install WMF 5.0
 Win7AndW2K8R2-KB3066439-x64.msu sur windows 7 SP 1
 
 
@@ -173,7 +183,7 @@ dscc.ps1 -stage <name> -nodeType master -nodeName hostmaster -nodeType slave -no
 # Test ############################
 
 local.ps1 -stage int2
-Start-DscConfiguration -Path mycfg_int2 -wait -Verbose -Credentials $mycreds
+Start-DscConfiguration -Path mof_int2 -wait -Verbose -Credentials $mycreds
 
 erreur : 
 
@@ -204,5 +214,7 @@ VERBOSE: Time taken for configuration job to complete is 1.292 seconds
 Réponse :
  
 Il faut installer à la main le module manquant 'xReleaseManagement' en WMF5.0 il faut faire un install-module
+
+Voir http://mikefrobbins.com/2014/10/30/powershell-desired-state-configuration-error-undefined-property-configurationname/
 
 #>
