@@ -139,6 +139,9 @@ La commande Enter-PSSession localhost doit pouvoir fonctionner
 get-service winrm 
 Enable-PSRemoting / Disable-PSRemoting
 
+La commande Ansible est : 
+Enable-PSRemoting -Force -ErrorAction Stop
+
 RESSOURCES ###############################################################
 
 https://pwrshell.net/desired-state-configuration-for-linux/
