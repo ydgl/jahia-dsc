@@ -1,0 +1,445 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+                        http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd">
+
+    <!-- Place your own bean definitions or customize/override the Digital Factory beans here -->
+	<bean id="cacheFilter" class="fr.apec.jahia.services.render.filter.cache.ApecAggregateCacheFilter">
+        <property name="disabled" value="${disableOutputApecCache:false}"/>
+        <property name="cascadeFragmentErrors" value="true"/>
+        <property name="priority" value="16" />
+        <property name="description" value="Module content caching filter." />
+        <property name="cacheProvider" ref="ModuleCacheProvider"/>
+        <property name="skipOnTemplateTypes" value="json"/>
+        <property name="skipOnConfigurations" value="include,wrapper,option"/>
+        <property name="applyOnModes" value="live"/>
+        <property name="generatorQueue" ref="moduleGeneratorQueue"/>
+        <property name="dependenciesLimit" value="1000"/>
+        <property name="skipLatchForPaths" >
+            <set>
+                <value>/modules</value>
+            </set>
+        </property>
+        <property name="skipLatchForConfigurations">
+            <set>
+                <value>page</value>
+            </set>
+        </property>
+    </bean>
+
+      <bean id="cacheKeyGenerator" class="org.jahia.services.render.filter.cache.DefaultCacheKeyGenerator">
+        <property name="partGenerators">
+            <list>
+                <bean class="org.jahia.services.render.filter.cache.LanguageCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.PathCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.TemplateCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.TemplateTypeCacheKeyPartGenerator"/>
+                <ref bean="aclCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.ContextCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.WrappedCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.CustomCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.QueryStringCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.TemplateNodesCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.ResourceIDCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.InAreaCacheKeyPartGenerator"/>
+                <bean class="org.jahia.services.render.filter.cache.SiteCacheKeyPartGenerator"/>
+                <bean class="fr.apec.jahia.services.render.filter.cache.ModuleParamsCacheKeyPartGeneratorSpecific"/>
+            </list>
+        </property>
+    </bean>
+
+
+    					<bean id="editorialcontentmanager" parent="abstractmanager">
+        <property name="requiredPermission" value="editorialContentManager"/>
+        <property name="nodeTypes">
+            <list>
+                <value>jnt:content</value>
+            </list>
+        </property>
+
+        <property name="folderTypes">
+            <list>
+                <value>jnt:virtualsite</value>
+                <value>jnt:contentFolder</value>
+                <value>jmix:editorialContent</value>
+                <value>jnt:contentList</value>
+            </list>
+        </property>
+
+        <property name="toolbars">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                        <bean class="org.jahia.services.uicomponents.bean.toolbar.Menu">
+                            <property name="titleKey"
+                                      value="fileMenu.label"/>
+                            <property name="items">
+                                <list>
+                                    <ref bean="Toolbar.Item.NewContentFolder"/>
+                                    <ref bean="Toolbar.Item.NewContent"/>
+                                </list>
+                            </property>
+                        </bean>
+                        <bean class="org.jahia.services.uicomponents.bean.toolbar.Menu">
+                            <property name="titleKey" value="label.edit"/>
+                            <property name="items">
+                                <list>
+                                    <ref bean="Toolbar.Item.Rename"/>
+                                    <ref bean="Toolbar.Item.Delete"/>
+                                    <ref bean="Toolbar.Item.Undelete"/>
+                                    <ref bean="Toolbar.Item.DeletePermanently"/>
+                                    <ref bean="Toolbar.Item.Separator"/>
+                                    <ref bean="Toolbar.Item.Copy"/>
+                                    <ref bean="Toolbar.Item.Cut"/>
+                                    <ref bean="Toolbar.Item.Paste"/>
+                                    <ref bean="Toolbar.Item.PasteReference"/>
+                                    <ref bean="Toolbar.Item.Separator"/>
+                                </list>
+                            </property>
+                        </bean>
+                        <bean class="org.jahia.services.uicomponents.bean.toolbar.Menu">
+                            <property name="titleKey"
+                                      value="viewMenu.label"/>
+                            <property name="items">
+                                <list>
+                                    <ref bean="Toolbar.Item.Refresh"/>
+                                    <ref bean="Toolbar.Item.Separator"/>
+                                    <ref bean="Toolbar.Item.ListView"/>
+                                    <ref bean="Toolbar.Item.ThumbsView"/>
+                                    <ref bean="Toolbar.Item.Detailedview"/>
+                                </list>
+                            </property>
+                        </bean>
+                        <ref bean="Toolbar.ItemsGroup.LanguageSwitcher"/>
+                        <ref bean="Toolbar.ItemsGroup.NodeTypeFiltering"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="contextMenu">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                        <ref bean="Toolbar.Item.Rename"/>
+                        <ref bean="Toolbar.Item.PreviewAsGuest"/>
+                        <ref bean="Toolbar.Item.Delete"/>
+                        <ref bean="Toolbar.Item.Undelete"/>
+                        <ref bean="Toolbar.Item.DeletePermanently"/>
+                        <ref bean="Toolbar.Item.Copy"/>
+                        <ref bean="Toolbar.Item.Cut"/>
+                        <ref bean="Toolbar.Item.Paste"/>
+                        <ref bean="Toolbar.Item.PasteReference"/>
+                        <ref bean="Toolbar.Item.NewContentFolder"/>
+                        <ref bean="Toolbar.Item.NewContent"/>
+                        <ref bean="Toolbar.Item.Lock"/>
+                        <ref bean="Toolbar.Item.Unlock"/>
+                        <ref bean="Toolbar.Item.ClearLock"/>
+                        <ref bean="Toolbar.Item.ClearAllLocks"/>
+                        <ref bean="Toolbar.Item.Publish"/>
+                        <ref bean="Toolbar.Item.Export"/>
+                        <ref bean="Toolbar.Item.Import"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="displaySearchInPage" value="false"/>
+        <property name="displaySearchInContent" value="true"/>
+        <property name="displaySearchInFile" value="false"/>
+        <property name="displaySearchInTag" value="false"/>
+        <property name="displaySearchInDateMeta" value="true"/>
+        <property name="searchInContent" value="true"/>
+        <property name="searchInFile" value="false"/>
+        <!-- accordion -->
+        <property name="repositories">
+            <list>
+                <ref bean="repository.contentSite"/>
+                <ref bean="repository.sites"/>
+                <ref bean="repository.mycontent"/>
+            </list>
+        </property>
+
+        <!-- tabs -->
+        <property name="engineTabs">
+            <list value-type="org.jahia.services.uicomponents.bean.editmode.EngineTab">
+                <ref bean="Engine.Tab.Info"/>
+                <ref bean="Engine.Tab.Content"/>
+                <!--<ref bean="Engine.Tab.Metadata"/>-->
+                <ref bean="Engine.Tab.Seo"/>
+                <!--<ref bean="Engine.Tab.Tags"/>-->
+                <!--<ref bean="Engine.Tab.Categories"/>-->
+                <!--<ref bean="Engine.Tab.Options"/>-->
+                <ref bean="Engine.Tab.LiveRoles"/>
+                <ref bean="Engine.Tab.EditRoles"/>
+                <ref bean="Engine.Tab.Usages"/>
+                <!--<ref bean="Engine.Tab.Versioning"/>-->
+                <!--<ref bean="Engine.Tab.Visibility"/>-->
+                <!--<ref bean="Engine.Tab.ContributeMode"/>-->
+            </list>
+        </property>
+
+        <!-- table columns-->
+        <property name="treeColumns">
+            <list value-type="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                <value>displayName,*,label.title</value>
+            </list>
+        </property>
+
+        <property name="tableColumns">
+            <list value-type="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                <value>index,40</value>
+                <!--<bean class="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                    <property name="key" value="providerKey"/>
+                    <property name="titleKey"
+                              value="column.provider.label"/>
+                    <property name="size"
+                              value="50"/>
+                    <property name="visibility">
+                        <bean class="org.jahia.services.uicomponents.bean.contentmanager.ProviderKeyColumnVisibility">
+                            <property name="jcrSessionFactory" ref="jcrSessionFactory"/>
+                            <property name="alsoCountDynamicProviders" value="false"/>
+                        </bean>
+                    </property>
+                </bean>-->
+                <value>icon,30,empty</value>
+				<value>displayName,400,label.title</value>
+                <value>subtitle,200,Titre court</value>
+				<value>primaryTypeLabel,160,label.type</value>
+				<value>isVisible,60,label.engineTab.visibility</value>
+				<value>mix:lastModified.jcr:lastModified,100</value>
+				<value>mix:lastModified.jcr:lastModifiedBy,40</value>
+                <value>mix:created.jcr:created,100</value>
+                <value>mix:created.jcr:createdBy,40</value>
+				<value>publicationInfo,30</value>
+				<value>locked,50,label.lock</value>
+				<value>visibilityInfo,1,empty</value>
+            </list>
+        </property>
+    </bean>
+
+            <!-- Editorial content picker -->
+    <bean id="editorialpicker" parent="abstractpicker">
+        <property name="nodeTypes">
+            <list>
+                <value>jnt:page</value>
+                <value>jmix:editorialContent</value>
+                <value>jnt:contentFolder</value>
+                <value>jnt:contentList</value>
+                <value>nt:folder</value>
+            </list>
+        </property>
+
+        <property name="folderTypes">
+            <list>
+                <value>jnt:page</value>
+                <value>jnt:navMenuText</value>
+                <value>jnt:virtualsite</value>
+                <value>jnt:contentList</value>
+                <value>jnt:contentFolder</value>
+                <value>nt:folder</value>
+            </list>
+        </property>
+        <!-- table columns-->
+        <property name="treeColumns">
+            <list value-type="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                <value>displayName</value>
+            </list>
+        </property>
+
+        <property name="toolbars">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                        <ref bean="Toolbar.Item.Copy"/>
+                        <ref bean="Toolbar.Item.Cut"/>
+                        <ref bean="Toolbar.Item.Paste"/>
+                        <ref bean="Toolbar.Item.PasteReference"/>
+                        <ref bean="Toolbar.ItemsGroup.NodeTypeFiltering"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="contextMenu">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                        <ref bean="Toolbar.Item.Copy"/>
+                        <ref bean="Toolbar.Item.Cut"/>
+                        <ref bean="Toolbar.Item.Paste"/>
+                        <ref bean="Toolbar.Item.PasteReference"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="displaySearchInPage" value="false"/>
+        <property name="displaySearchInContent" value="false"/>
+        <property name="displaySearchInDateMeta" value="true"/>
+        <property name="displaySearchInFile" value="false"/>
+        <property name="displaySearchInTag" value="true"/>
+        <property name="searchInContent" value="true"/>
+        <property name="searchInFile" value="true"/>
+        <property name="allowsMultipleSelection" value="false"/>
+        <!-- accordion panels-->
+        <property name="repositories">
+            <list>
+                <ref bean="repository.templateContents"/>
+                <ref bean="repository.site"/>
+                <ref bean="repository.sitesPicker"/>
+                <ref bean="repository.mycontent"/>
+            </list>
+        </property>
+
+       <property name="tableColumns">
+            <list value-type="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                <value>icon,40,empty</value>
+                <value>displayName,300,label.title</value>
+                <value>subtitle,100,Titre court</value>
+                <value>primaryTypeLabel,140,label.type</value>
+				<value>apec:agenda.place,100</value>
+				<value>apec:agenda.event_start_date_display,100</value>
+                <value>publicationInfo,40</value>
+            </list>
+        </property>
+
+    </bean>
+
+    <bean id="mediapicker" parent="abstractpicker">
+        <property name="nodeTypes">
+            <list>
+                <value>apec:media</value>
+            </list>
+        </property>
+        <property name="folderTypes">
+            <list>
+                <value>jnt:contentFolder</value>
+            </list>
+        </property>
+
+        <property name="toolbars">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                        <ref bean="Toolbar.Item.Refresh"/>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="contextMenu">
+            <bean class="org.jahia.services.uicomponents.bean.toolbar.Toolbar">
+                <property name="items">
+                    <list>
+                    </list>
+                </property>
+            </bean>
+        </property>
+        <property name="displaySearchInPage" value="false"/>
+        <property name="displaySearchInContent" value="false"/>
+        <property name="displaySearchInDateMeta" value="true"/>
+        <property name="displaySearchInFile" value="false"/>
+        <property name="displaySearchInTag" value="true"/>
+        <property name="searchInContent" value="true"/>
+        <property name="searchInFile" value="false"/>
+        <property name="allowsMultipleSelection" value="false"/>
+        <!-- accordion panels-->
+        <property name="repositories">
+            <list>
+                <ref bean="repository.sitesPicker"/>
+            </list>
+        </property>
+
+        <!-- table columns-->
+        <property name="tableColumns">
+            <list value-type="org.jahia.services.uicomponents.bean.contentmanager.Column">
+                <value>icon,40,empty</value>
+                <value>name,*,label.name</value>
+                <value>size,140,label.size</value>
+                <value>publicationInfo,40</value>
+            </list>
+        </property>
+    </bean>
+    
+    <bean id="Engine.Tab.Content" class="org.jahia.services.uicomponents.bean.editmode.EngineTab">
+        <property name="id" value="content"/>
+        <property name="titleKey" value="label.engineTab.content"/>
+        <property name="requiredPermission" value="viewContentTab"/>
+        <property name="tabItem">
+            <bean class="org.jahia.ajax.gwt.client.widget.contentengine.ContentTabItem">
+                <property name="maxNameSize" value="${jahia.jcr.maxNameSize}"/>
+                <property name="invalidLanguagesAvailableForTypes" ref="editModeInvalidLanguagesAvailableForTypes"/>
+                <property name="nameNotEditableForTypes">
+                    <list>
+                        <value>jnt:group</value>
+                        <value>jnt:groupsFolder</value>
+                        <value>jnt:mounts</value>
+                        <value>jnt:remotePublications</value>
+                        <value>jnt:modules</value>
+                        <value>jnt:module</value>
+                        <value>jnt:moduleVersion</value>
+                        <value>jnt:templateSets</value>
+                        <value>jnt:user</value>
+                        <value>jnt:usersFolder</value>
+                        <value>jnt:virtualsite</value>
+                        <value>jnt:virtualsitesFolder</value>
+						<value>apecmix:systemNameNotEditable</value>
+						<value>apecmix:systemNameNotEditableByUpdate</value>
+                    </list>
+                </property>
+                <property name="defaultAutoUpdate" value="true"/>
+            </bean>            
+        </property>
+    </bean>
+
+    <!-- ================================================================================================================ -->
+    <!--                                            Node Save Interceptor                                                 -->
+    <!-- ================================================================================================================ -->
+    <bean name="InterceptorNodeSaveList" class="fr.apec.jahia.interceptor.InterceptorNodeSaveList"/>
+
+    <bean name="ContentManagerHelper" class="fr.apec.jahia.interceptor.CustomContentManagerHelper">
+        <property name="navigation"              ref="NavigationHelper"/>
+        <property name="versioning"              ref="VersioningHelper"/>
+        <property name="sitesService"            ref="JahiaSitesService"/>
+        <property name="templateManagerService"  ref="JahiaTemplateManagerService"/>
+        <property name="properties"              ref="PropertiesHelper"/>
+        <property name="contentHistoryService"   ref="ContentHistoryService"/>
+        <property name="interceptorNodeSaveList" ref="InterceptorNodeSaveList"/>
+        <property name="fileStorage" ref="UploadedPendingFileStorage"/>
+    </bean>
+
+    <bean name="CustomPropertiesHelper" class="org.jahia.ajax.gwt.helper.PropertiesHelper">
+        <property name="contentDefinition" ref="ContentDefinitionHelper"/>
+        <property name="navigation"        ref="NavigationHelper"/>
+        <property name="ignoredProperties">
+            <set>
+                <value>jcr:baseVersion</value>
+                <value>jcr:predecessors</value>
+                <value>jcr:versionHistory</value>
+            </set>
+        </property>
+    </bean>
+
+    <bean id="nodeSaveInterceptorRegistrator"
+          class="fr.apec.jahia.interceptor.NodeSaveInterceptorRegistrator" abstract="true">
+        <property name="interceptorNodeSaveList" ref="InterceptorNodeSaveList"/>
+    </bean>
+
+    <!-- Intercepteur de méthode destiné à PropertiesHelper -->
+    <bean id="interceptorProperties" class="fr.apec.jahia.interceptor.PropertiesHelperInterceptor">
+        <property name="interceptorNodeSaveList" ref="InterceptorNodeSaveList"/>
+        <property name="properties"              ref="PropertiesHelper"/>
+    </bean>
+
+    <!-- Proxy remplaçant le PropertiesHelper -->
+    <bean id="PropertiesHelper" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="target" ref="CustomPropertiesHelper" />
+        <property name="interceptorNames">
+            <list>
+                <value>interceptorProperties</value>
+            </list>
+        </property>
+    </bean>
+
+    <!-- ================================================================================================================ -->
+
+</beans>

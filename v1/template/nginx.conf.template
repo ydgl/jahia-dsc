@@ -1,0 +1,1353 @@
+user www-data;
+#nb processor - Mettre 16 en production car 16 processeurs
+worker_processes 16;
+
+
+pid /run/nginx.pid;
+
+# worker_processes * worker_connections = maxclients
+
+# nginx minversion 1.8.0
+
+events {
+	multi_accept on;
+	worker_connections  2048;
+	use epoll;
+
+}
+
+http {
+
+	# Recuperation du X-forwared-for renvoye le netscaler
+	set_real_ip_from   10.1.10.0/24;
+	real_ip_header      X-Forwarded-For;
+
+	client_max_body_size 20m;
+	client_body_timeout 12;
+	client_header_timeout 12;
+	keepalive_timeout 15s;
+	keepalive_requests 1000;
+	send_timeout 10s;
+
+	sendfile on;
+	tcp_nopush on;
+	tcp_nodelay on;
+
+
+	open_file_cache max=200000 inactive=20s;
+	open_file_cache_valid 30s;
+	open_file_cache_min_uses 2;
+	open_file_cache_errors on;
+	reset_timedout_connection on;
+
+
+
+	types_hash_max_size 2048;
+
+	include /etc/nginx/mime.types;
+	default_type application/octet-stream;
+
+	userid         on;
+	userid_name    mogobiz_uuid;
+	userid_path    /;
+	userid_expires 730d;
+
+	add_header Set-Cookie "mogobiz_time=$time_iso8601;Path=/";
+
+	log_format  main '$time_iso8601\t\t$request_method\t\t$remote_addr\t\t$http_x_forwarded_for\t\t$request_time\t\t$remote_user\t\t$request_uri\t\t$uri\t\t$args\t\t'
+	             '$status\t\t$http_referer\t\t$cookie_mogobiz_uuid\t\t$cookie_jsessionid\t\t$request_body\t\t$http_user_agent\t\t$sent_http_x_search_results\t\t$uid_set\t\t'
+				'$uid_got\t\t$cookie_mogobiz_time\t\t$cookie_apec_user_id\t\t$host\t\t';
+
+ 
+# pb Prod
+        access_log /var/log/nginx/access.log main;
+
+	# access_log  /dev/null;
+
+	# debug only
+	error_log /var/log/nginx/error.log;
+
+    proxy_http_version 1.1;
+
+    proxy_buffering on;
+    proxy_cache_valid any 10m;
+
+
+    # We define 3 caches : One for jahia pages, pone for rest services and for for image/css resources
+    # caches have a size of 4g each and pages will stay there for 1d at most if they are not accessed.
+    # keys for accessing cache entries are cached in the keyzone with a size of 100 mb
+    # webcache is the jahia pages cache
+    # restcache is the rest services cache
+    # res cache is the image cache
+    proxy_cache_path /var/cache/nginx/seocache            levels=1:2 keys_zone=seocache:100m            inactive=1d max_size=100m;
+    proxy_cache_path /var/cache/nginx/phantomcache        levels=1:2 keys_zone=phantomcache:100m        inactive=1d max_size=8g;
+    proxy_cache_path /var/cache/nginx/webcache            levels=1:2 keys_zone=webcache:100m            inactive=1d max_size=4g;
+    proxy_cache_path /var/cache/nginx/restcache           levels=1:2 keys_zone=restcache:100m           inactive=1d max_size=2g;
+    proxy_cache_path /var/cache/nginx/rescache            levels=1:2 keys_zone=rescache:100m            inactive=1d max_size=4g;
+    proxy_cache_path /var/cache/nginx/generatedcache      levels=1:2 keys_zone=generatedcache:100m      inactive=1d max_size=1g;
+    proxy_cache_path /var/cache/nginx/authcache           levels=1:2 keys_zone=authcache:100m           inactive=1d max_size=1g;
+    proxy_cache_path /var/cache/nginx/autocompletioncache levels=1:2 keys_zone=autocompletioncache:100m inactive=1d max_size=1g;
+    proxy_cache_path /var/cache/nginx/lieuautocompletioncache levels=1:2 keys_zone=lieuautocompletioncache:100m inactive=1d max_size=1g;
+    proxy_cache_path /var/cache/nginx/referentielstatiquecache levels=1:2 keys_zone=referentielstatiquecache:100m inactive=1d max_size=1g;
+	proxy_cache_path /var/cache/nginx/autoconsommablecache levels=1:2 keys_zone=autoconsommablecache:100m inactive=1d max_size=1g;
+    proxy_temp_path  /var/cache/nginx/tmpcache;
+
+    proxy_cache_lock on;
+    proxy_cache_use_stale updating;
+    proxy_bind 0.0.0.0;
+
+    proxy_ignore_headers X-Accel-Expires;
+    proxy_ignore_headers Expires;
+    proxy_ignore_headers Cache-Control;
+    proxy_ignore_headers Set-Cookie;
+    proxy_ignore_headers Vary;
+    proxy_ignore_headers X-Accel-Charset;
+    proxy_ignore_headers X-Accel-Limit-Rate;
+    proxy_ignore_headers X-Accel-Buffering;
+
+    proxy_cache_methods GET HEAD;
+
+
+    proxy_read_timeout 600s;
+
+
+    # Requetes provenant du netscaler
+    # INDIQUER TOUS LES JAHIAS SAUF LE PROCESSOR QUAND CLUSTER (lecture seule)
+
+    upstream backend9010 {
+    	# Mettre autant de noeud de calcul que dispo
+        # on ne met pas le processor
+        zone http_backend 10m;
+        least_conn;
+        server cms1#COULOIR#.dapec.internaluse:8080 max_fails=5;
+	    server cms1#COULOIR#.dapec.internaluse:8080 max_fails=5;
+	    sticky cookie srv_id expires=1h domain=.apec.fr path=/;
+        keepalive 32;
+    }
+
+
+    # Requetes internes sur le cms processor en lecture/ecriture
+    # INDIQUER LE JAHIA PROCESSOR (MASTER en lecture / ecriture)
+    upstream backend9011 {
+    	keepalive 32;
+	    zone http_backend 10m;
+        server cms1#COULOIR#.dapec.internaluse:8080 max_fails=5;
+    }
+
+	# requete pour google redirige vers le serveur phantom
+    upstream backendphantom {
+        keepalive 32;
+	    zone http_backend 10m;
+        server phantom1#COULOIR#.dapec.internaluse:5000 max_fails=5;
+        server phantom1#COULOIR#.dapec.internaluse:5000 max_fails=5;
+    }
+
+    # INDIQUER TOUS LES JAHIAS SAUF LE PROCESSOR QUAND CLUSTER (lecture seule)
+    # connecteur 8081 du tomcat de jahia qui gere l'ISO-8859-1
+    # pour les url encode sous ce format
+    upstream backend8081 {
+	zone http_backend 10m;
+        # on ne met pas le processor
+        server cms1#COULOIR#.dapec.internaluse:8081 max_fails=5;
+        server cms1#COULOIR#.dapec.internaluse:8081 max_fails=5;
+        keepalive 512;
+    }
+
+    upstream backendoffres9010 {
+	zone http_backend 10m;
+	server wsm#COULOIR#.dapec.internaluse:8080 max_fails=5;
+   }
+
+
+
+    match cms_ok {
+	status 200;
+	body ~ "PONG";
+    }
+
+    match phantom_ok {
+	status 200;
+    }
+
+   match services_ok {
+	status 200;
+	body ~ "API disponible";
+    }
+
+    server {
+
+	# Port on wich we accept purge request
+        listen       9009;
+
+	status_zone purge_backend_9009;
+
+	#health_check;
+
+
+	# Purge pattern to remove jahia pages from webcache
+        location ~ /purge-web-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	webcache;
+            proxy_cache_key     $host$1$is_args$args;
+        }
+
+		# Purge pattern to remove json data store for backend rest services from the restcache
+        location ~ /purge-rest-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	restcache;
+            proxy_cache_key     $1$is_args$args;
+        }
+
+		# Purge pattern for images
+        location ~ /purge-res-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	rescache;
+            proxy_cache_key     $1$is_args$args;
+        }
+
+		# Purge pattern for generated ressources
+        location ~ /purge-generated-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	generatedcache;
+            proxy_cache_key     $1$is_args$args;
+        }
+
+        # Purge pattern for seo ressources
+        location ~ /purge-seo-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	seocache;
+            proxy_cache_key     $host$1;
+        }
+
+        # Purge pattern for phantom ressources
+        location ~ /purge-phantom-cache(/.*) {
+            #allow              127.0.0.1;
+            #deny               all;
+            access_log off;
+	    proxy_pass http://backend9010;
+            proxy_cache_purge  	1;
+	    proxy_cache 	phantomcache;
+            proxy_cache_key     $1$is_args$args;
+        }
+
+    }
+
+  server {
+		# Coming from the internet through netscaler
+	    listen       9010;
+	    # internal calls
+	    listen       9011;
+	    #server_name  *.apec.fr;
+
+    proxy_set_header Connection "";
+    proxy_set_header Host $http_host;
+
+	    status_zone jahia_backend_9010_9011;
+
+	    location ~ ^(/modules/tools){
+			rewrite (.*) "https://$host" permanent;
+	    }
+
+# correctif Karim
+            location = /Emploi {
+                rewrite .* "https://${host}/Emploi/Mes-Services-Apec";
+            }
+
+            location = /Emploi-stage {
+                rewrite .* "https://${host}/Emploi-stage/Mes-Services-Apec";
+            }
+
+            location = /Recrutement {
+                rewrite .* "https://${host}/Recrutement/Vos-services-RH-Apec";
+            }
+
+
+	    error_page 502 503 504 @maintenance;
+
+            # copier la page maintenance dans /static/sites/maintenance
+            location @maintenance {
+        	root /static/sites/maintenance;
+                rewrite ^(.*)$ /maintenance.html break;
+            }
+
+            # MCO_SI-03-2016-S3
+            # flipbook redirect
+            location ~ /flipbook {
+                rewrite .* "https://flipbook.apec.fr";
+            }
+            # FIN MCO_SI-03-2016-S3
+
+	    # histoires de liens redirect
+		location ~ /histoiresdeliens {
+			rewrite .* "https://histoiresdeliens.apec.fr";
+		}
+
+            # MCO_SI-24153
+                location = /Reseau-pro/activation-de-mon-reseau-pro.jsp {
+                        rewrite .* "https://${host}/home/reseau-pro.html" permanent;
+            }
+                location = /MesOffres/Recherche/voir-liste-offres.jsp {
+                        rewrite .* "https://${host}/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi.html" permanent;
+            }
+                location = /MonCompte/ApecIndexMonCompte.jsp {
+                        rewrite .* "https://${host}/home/mon-compte.html" permanent;
+            }
+                location = /ApecEtMoi/Services-sur-mesure/rdv-booster-interne.jsp {
+                        rewrite .* "https://${host}/Emploi/Mes-services-Apec/Nos-services-phares/Un-consultant-vous-conseille" permanent;
+            }
+                location = /MaCarriere/RepriseEntreprise/ApecIndexRepriseEntreprise.jsp {
+                        rewrite .* "https://${host}/Emploi/Ma-carriere/Tous-nos-conseils/Devenir-entrepreneur" permanent;
+            }
+                location = /MaCarriere/Vocable/evaluez-votre-anglais.jsp {
+                        rewrite .* "https://${host}/Emploi/Ma-carriere/Evaluez-votre-anglais" permanent;
+            }
+                location = /MaCarriere/EvaluerSalaire/evaluer-salaire.jsp {
+                        rewrite .* "https://${host}/Emploi/Mes-services-Apec/Les-outils-pour-evoluer/Votre-marche/Evaluer-votre-salaire2" permanent;
+            }
+                location = /MarcheEmploi/ApecIndexMarcheEmploi.jsp {
+                        rewrite .* "https://${host}/Emploi/Observatoire-de-l-emploi" permanent;
+            }
+
+		# redirect pour l'annulation d'une inscription a un atelier.
+		location = /Accueil/Atelier/annulation-atelier.jsp {
+			rewrite .* "https://${host}/home/mon-compte/annulation-inscription-atelier.html" permanent;
+		}
+
+
+		# This section handles locations cached on a per user basis - RULE 5
+		location ~ ^/cms/webservices(/rechercheOffre/ids)$ {
+            		proxy_pass http://backend$server_port/$uri;
+		 	proxy_intercept_errors on;
+			error_page 500 501 502 503 504 505 506 507 508 509 510 511 = @backendserviceFailOver;
+
+		}
+
+		location @backendserviceFailOver{
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $http_host;
+			proxy_set_header X-Auth-Token "#token.generique#VISI_FRONT#";
+			proxy_pass http://backendoffres9010/rest-server/rest$1$is_args$args;
+		}
+
+
+
+		# redirect anakrys no result
+		location = /MesOffres/Recherche/saisir-criteres-recherche-offres.jsp {
+
+			# pour le mobile, inutile de rediriger en ajoutant le W
+			if ($args ~* .*doFindOffreFromLienDirect=doFindOffreFromLienDirect.*W$) {
+                set $numOffre $arg_mail_offreSid;
+				set $args '';
+                rewrite (.*) "https://${host}/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi/detail-de-loffre-demploi.html?numIdOffre=${numOffre}" permanent;
+            }
+
+
+            if ($args ~ .*doFindOffreFromLienDirect=doFindOffreFromLienDirect.*) {
+                set $numOffre $arg_mail_offreSid;
+                set $args '';
+                rewrite (.*) "https://${host}/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi/detail-de-loffre-demploi.html?numIdOffre=${numOffre}W" permanent;
+            }
+            if ($args ~ .*doCantFindOffreStage=doCantFindOffreStage.*) {
+                set $args '';
+                rewrite ^/MesOffres/Recherche/saisir-criteres-recherche-offres(.*) "https://$host/home/mes-offres/recherche-des-offres-demploi.html?stage&error" permanent;
+            }
+            set $motsClesStage $arg_mot_clef;
+			set $regionStage $arg_region;
+            set $args '';
+			rewrite ^/MesOffres/Recherche/saisir-criteres-recherche-offres(.*) "https://$host/home/mes-offres/recherche-des-offres-demploi.html?stage&motsClesStage=${motsClesStage}&regionStage=${regionStage}" permanent;
+		}
+
+		# SOCLE-1571
+		location ~ /Accueil/Inscription/ApecLostIdentiteMobile.jsp {
+			set $args '';
+			rewrite ^/Accueil/Inscription/ApecLostIdentiteMobile(.*)  "https://$host/home/mon-compte/mot-de-passe-oublie.html" permanent;
+		}
+
+		# Partenaires recherche
+		location ~ /MesOffres/RechercheOffres/ApecRechercheOffre.jsp {
+			set $motsCles $arg_keywords;
+            proxy_pass http://backend8081/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi.html?motsCles=$motsCles&encoding=iso;
+		}
+
+
+		# Offres de stage anakrys - legacy redirection
+		location ~ /VosOffres/ApecIndexVosOffres.jsp {
+			if ($host ~ ^recruteurs.*) {
+				set $args '';
+				rewrite ^/VosOffres/ApecIndexVosOffres.jsp "https://$host/home/gerer-vos-offres.html" permanent;
+			}
+		}
+
+		#  Legacy redirection - detail stage
+		location ~ /MesOffres/RechercheStage/ApecRechercheStage.jsp {
+			if ($host ~* "jd" ) {
+				set $numOffre $arg_offreSid;
+				set $args '';
+		        rewrite (.*) "https://${host}/home/mes-offres/recherche-des-offres-demploi/detail-dun-stage.html?id_offre=${numOffre}" permanent;
+		   }
+		}
+
+		# redirection FAQ - JD
+		location ~ /ApecEtMoi/Faq/ApecViewListFaq.jsp {
+			if ($host ~* "jd" ) {
+				set $args '';
+				rewrite (.*) "https://${host}/Emploi-stage/Mon-compte/Vous-avez-une-question-sur-le-site/Categories" permanent;
+			}
+			# REDIRECT POUR CADRES SUITE AUX ERREURS DANS LES LOGS NGINX
+			if ($host ~* "cadres" ) {
+				set $args '';
+				rewrite (.*) "https://${host}/Emploi/Mon-compte/Vous-avez-une-question-sur-le-site/Categories" permanent;
+			}
+		}
+
+		#  Legacy redirection
+		location ~ /MesCV/ApecIndexMesCV.jsp {
+			if ($host ~* "jd|cadres" ) {
+				set $userMail $arg_mail_userSid;
+				set $userCprj $arg_mail_userCprjSid;
+				set $mailAction $arg_mail_action;
+				set $args '';
+				rewrite ^/MesCV/ApecIndexMesCV.jsp(.*) "https://$host/home/mes-outils/gestion-des-cv/prolongation-rallongement-cv.html?username=$userMail&idCv=$userCprj&typeProlongation=$mailAction" permanent;
+			}
+		}
+
+		#  Legacy redirection
+		location ~ /MesOffres/ProfilOffres/ApecViewListProfilOffres.jsp {
+			if ($host ~* "jd|cadres" ) {
+				set $userMail $arg_mail_userSid;
+				set $args '';
+				rewrite ^/MesOffres/ProfilOffres/ApecViewListProfilOffres.jsp(.*) "https://$host/home/mes-offres/alerte-e-mail-des-offres.html?username=$userMail" permanent;
+			}
+		}
+
+		#  Legacy redirection
+		location ~ /CV/Candidapec/ApecViewCvFromMail.jsp {
+			if ($host ~* "recruteurs" ) {
+				set $userSid $arg_mail_userSid;
+				set $args '';
+				rewrite ^/CV/Candidapec/ApecViewCvFromMail.jsp(.*) "https://$host/home/consulter-les-cv/candidapec.html?username=$userSid#/abonnement/modifier" permanent;
+			}
+		}
+
+		# homepage redirections
+		location ~ ^/Accueil/ApecIndexAccueil.jsp {
+
+			if ($args ~* "doSubscribe") {
+				set $args '';
+				rewrite ^/Accueil/ApecIndexAccueil(.*) "https://$host/home/mon-compte/creation-de-compte.html" permanent;
+			}
+			set $args '';
+			rewrite ^/Accueil/ApecIndexAccueil(.*) "https://$host" permanent;
+		}
+
+
+		# homepage redirections
+		location ~ ^/Mobile/ApecLandingPage.jsp {
+			if ($host ~* "www" ) {
+				set $args '';
+				rewrite ^/Mobile/ApecLandingPage(.*) "https://$host/home/apec-landing-page.html" permanent;
+			}
+			if ($host ~* ^cadres(?<env>[0-9a-z]*)\.(?<domain>.*) ) {
+				set $args '';
+				rewrite ^(.*) https://www$env.$domain/home/apec-landing-page.html permanent;
+			}
+		}
+
+		# Mes offres
+		location ~ ^/MesOffres/ApecIndexMesOffres.jsp {
+			set $args '';
+			rewrite ^/MesOffres/ApecIndexMesOffres(.*) "https://$host/home/mes-offres.html" permanent;
+		}
+
+
+		# communaute
+		location ~ ^/Communaute/Forum/ApecForumIdentification.jsp {
+			set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+			if ($args ~* "urlForum") {
+                set $urlForum $arg_urlForum;
+				set $args '';
+				rewrite ^/Communaute/Forum/ApecForumIdentification.jsp(.*) "https://$host/home/mon-compte/identification.html?logInRedirect=https%3A%2F%2F$host%2Fhome.goToForum.do%3FforumLink=$urlForum" permanent;
+			}
+			set $args '';
+			rewrite ^/Communaute(.*) "https://$host/home/communaute.html" permanent;
+		}
+
+		# communaute
+		location ~ ^/Communaute {
+			set $args '';
+			rewrite ^/Communaute(.*) "https://$host/home/communaute.html" permanent;
+		}
+
+		# page pivot mobile
+		location ~ ^/core/common/site/mobile/ApecPivotPage.jsp {
+			set $args '';
+			rewrite ^/core/common/site/mobile/ApecPivotPage(.*) "https://$host" permanent;
+		}
+
+# train 11-2015-S3
+		# redirection simulateur entretien JD
+			location = /Emploi-stage/Premier-job/Entrainez-vous/Simulateur-d-entretien/Simulateur-d-entretien-de-recrutement  {
+			rewrite .* "https://${host}//Emploi-stage/Premier-job/Entrainez-vous/Simulateur-d-entretien" permanent;
+		}
+
+		# redirection simulateur entretien Cadres
+			location = /Emploi/Ma-carriere/Entrainez-vous/Simulateur-d-entretien-de-recrutement/Simulateur-d-entretien-de-recrutement {
+			rewrite .* "https://${host}/Emploi/Ma-carriere/Entrainez-vous/Simulateur-d-entretien-de-recrutement" permanent;
+		}
+
+
+		#  Legacy redirection - Partenaires
+		location ~ ^(/core/common/site/scripts/xtcore.js)$ {
+			rewrite ^/core/common/site/scripts/xtcore.js "https://$host/modules/apec-template-bootstrap-responsive/javascript/analytics/xtcore.js" permanent;
+		}
+
+		# legacy resources - Partenaires
+		location ~ ^(/core/.*.css)$|^(/core/.*.jpg)$|^(/core/.*.jpeg)$|^(/core/.*.png)$|^(/core/.*.gif)$ {
+			set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+			if ($host ~ ^recruteurs.*) { set $sitekey "recruteurs"; }
+			if ($host ~ ^www.*) { set $sitekey "www"; }
+			proxy_cache generatedcache;
+			proxy_cache_key    $sitekey$uri;
+			add_header X-Cache-Status $upstream_cache_status;
+			access_log off;
+			add_header X-Debug "Ressources Cache Partenaires";
+			proxy_pass http://backend$server_port/files/live/mounts/media/resources-legacy-partenaires/$sitekey/$uri;
+		}
+
+
+		# bo job and action are protected - only on backend 9011
+		location ~* (.*)Job.do|(.*)Refresh.do|(.*)sitemap(.*).do|(.*)flushCacheEditorial.do|(.*)rateInJcr.do|(.*)commentInJcr.do {
+			ssi off;
+	    	if ($server_port = 9010){
+				rewrite (.*) "https://$host" permanent;
+	     	}
+	     	proxy_pass http://backend9011;
+        }
+
+
+		# homes pages
+		location = / {
+  	  		proxy_cache webcache;
+	  		proxy_hide_header Set-Cookie;
+            proxy_cache_key    $host/home.html;
+            ssi off;
+            set $nocache 0;
+			if ($http_cookie ~ "(.*)(apec_activity_cookie)([^;,]+)($|[;,])") {
+				set $nocache 1;
+			}
+            if ($host ~ ^nousrejoindre.*) {
+                    set $nocache 1;
+            }
+            proxy_no_cache $nocache;
+			proxy_cache_bypass $nocache;
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 2d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+            proxy_pass http://backend$server_port/home.html;
+    	}
+
+		# javascripts/css cache handling location - RULE 0
+		location ~ ^(/generated-resources/) {
+	    	# images are cache in the resource cache
+            proxy_cache generatedcache;
+            # remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+            # the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # only cache GET and HEAD requests. Exclude POST request from cache process
+	    	proxy_cache_methods GET HEAD;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 1 day
+            proxy_cache_valid 200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Test $uri$is_args$args;
+	    	#add_header X-Debug "Generated Ressources cache";
+            access_log off;
+	        add_header Cache-Control "public";
+            expires 30d;
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+        # No cache for the images : Presentation Entreprise - RULE 0
+		location ~ ^(/files/live/mounts/media/presentation_entreprise) {
+			add_header X-Cache-Status "BYPASS";
+        	proxy_pass http://backend$server_port;
+        }
+		
+		
+		location ~ ^(/files/live/(.*)media_entreprise(.*)) {
+            # images are cache in the resource cache
+            proxy_cache rescache;
+            # remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+            # the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            set $nocache 0;
+  	        if ($host ~ ^recruteurs.*) { 
+	           set $nocache 1;
+            }
+            proxy_no_cache $nocache;
+            proxy_cache_bypass $nocache;
+            # only cache GET and HEAD requests. Exclude POST request from cache process
+	    	proxy_cache_methods GET HEAD;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 30 day
+            expires -1;
+            proxy_cache_valid    200 301 302 15m;
+            access_log off;
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+	        add_header X-Cache-Status $upstream_cache_status;
+            proxy_pass http://backend$server_port;
+
+	}
+
+	     # images cache handling location - RULE 1
+		location ~ ^(/files/live/)|^(/modules/)|(\.css)$|(\.js)$ {
+	       # images are cache in the resource cache
+            proxy_cache rescache;
+            # remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+            # the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # only cache GET and HEAD requests. Exclude POST request from cache process
+	        proxy_cache_methods GET HEAD;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 30 day
+	        add_header X-Cache-Status $upstream_cache_status;
+            add_header Cache-Control "public";
+            expires 48h;
+            proxy_cache_valid    200 301 302 30d;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        if ($uri !~* (.*pdf$)) {
+               access_log off;
+	       }
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+	        add_header X-Cache-Status $upstream_cache_status;
+            proxy_pass http://backend$server_port;
+        }
+
+            # Cache qualification - RULE 1
+            location ~ ^(/cms/webservices/rechercheOffre/qualification/) {
+            # images are cache in the resource cache
+            proxy_cache rescache;
+            # remove set-cookie header, you don't want everybody to share the same session
+            proxy_hide_header Set-Cookie;
+            # the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # only cache GET and HEAD requests. Exclude POST request from cache process
+                proxy_cache_methods GET HEAD;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 30 day
+            proxy_cache_valid    200 301 302 404 2d;
+            access_log off;
+            # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+		# This section handles location cached only when the user is NOT authenticated - RULE 2
+        location ~ ^(/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi.html)|^(/home/mes-offres/recherche-des-offres-demploi.html)|^(/home/gerer-vos-offres/recherche-des-offres-demploi.html)|^(/home/gerer-vos-offres/recherche-des-offres-demploi/liste-des-offres.html)|^(/home/gerer-vos-offres/recherche-des-offres-demploi/liste-des-offres/detail-de-loffre.html) {
+            # Jahia pages are cached in the web cache
+            proxy_cache webcache;
+			#prerender
+	    	set $prerender 0;
+
+			if ($http_user_agent ~* "apecbot") {
+				set $prerender 1;
+		    }
+		    if ($args ~ "_escaped_fragment_") {
+				set $prerender 1;
+		    }
+
+                    if ($host !~ ^(cadres|jd).*) {
+		    	set $prerender 0;
+		    }
+
+            # if cookie set here, it means that we are not authenticated. So just remove it
+            proxy_hide_header Set-Cookie;
+            # the cache key include the host since pages on different hosts may have the same name
+            proxy_cache_key    $host$uri;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # Authenticated users come back with the apec.user.cookie ou apec_activity_cookie cookies holding a value not empty
+            # when present pages are not retrieved from the cache. They are forwarded to the backend
+            # through the netscaler
+
+            #set $nocache 0;
+			#if ($http_cookie ~ "(.*)(apec_activity_cookie=)([^;,]+)($|[;,])") {
+			#    set $nocache 1;
+			#}
+			#proxy_no_cache $nocache $prerender;
+			#proxy_cache_bypass $nocache $prerender;
+            proxy_no_cache $prerender;
+            proxy_cache_bypass $prerender;
+
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 1 day
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Debug "Offers cache loc1";
+	    	add_header X-UA-Compatible "IE=Edge";
+
+            # proxy pass to backendphantom
+	    	if ($prerender = 1) {
+				proxy_pass http://backendphantom/$scheme:///$host:9010/$uri$is_args$args;
+	    	}
+            # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+
+		# This section handles location cached only when the user is NOT authenticated for rewrited url - RULE 3
+        location ~ ^(/liste-offres-emploi-cadres/){
+
+	     	# Jahia pages are cached in the web cache
+            proxy_cache webcache;
+	     	# we get put and get only 1 page for all rewrited pages list
+ 	     	set $url_cache_list_default "/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi.html";
+	     	#prerender
+	     	set $prerender 0;
+	     	#default cacheKey
+	     	set $cachekey  $host$url_cache_list_default;
+
+		    if ($http_user_agent ~* "apecbot") {
+				set $prerender 1;
+		    }
+		    if ($args ~ "_escaped_fragment_") {
+				set $prerender 1;
+		    }
+
+                    if ($host !~ ^(cadres|jd).*) {
+		    	set $prerender 0;
+		    }
+
+            # if cookie set here, it means that we are not authenticated. So just remove it
+            proxy_hide_header Set-Cookie;
+            # the cache key include the host since pages on different hosts may have the same name
+            #proxy_cache_key    $host$uri;
+	    	proxy_cache_key  $cachekey;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # Authenticated users come back with the apec.user.cookie ou apec_activity_cookie cookies holding a value not empty
+            # when present pages are not retrieved from the cache. They are forwarded to the backend
+            # through the netscaler
+
+            #set $nocache 0;
+			#if ($http_cookie ~ "(.*)(apec_activity_cookie=)([^;,]+)($|[;,])") {
+			#    set $nocache 1;
+			#}
+			#proxy_no_cache $cookie_nocache $prerender;
+			#proxy_cache_bypass $cookie_nocache $prerender;
+            proxy_no_cache $prerender;
+            proxy_cache_bypass $prerender;
+
+
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 1 day
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Debug "Offers cache loc2";
+	    	#add_header X-Cache-Key $cachekey;
+	    	add_header X-UA-Compatible "IE=Edge";
+
+           # proxy pass to backendphantom
+	       if ($prerender = 1) {
+				proxy_pass http://backendphantom/$scheme:///$host:9010/$uri$is_args$args;
+	       }
+           proxy_pass http://backend$server_port;
+        }
+
+
+	# Gere le detail des offres - Cache phantom pour les 3 points d acces ci dessous - RULE 4
+	location ~ (^/offres-emploi-cadres/(.*)_(.*)_(.*)_(?<numIdOffre>[A-Z0-9]+)_(.*)$)|(^/phantom/detail/offre/(?<numIdOffre2>[A-Z0-9]+)$)|^(/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi/detail-de-loffre-demploi.html) {
+	     	set $proxycache "webcache";
+	     	# we get put and get only 1 page for all rewrited pages list
+ 	     	set $url_cache_detail_default "/home/mes-offres/recherche-des-offres-demploi/liste-des-offres-demploi/detail-de-loffre-demploi.html";
+	     	set $prerender 0;
+	     	set $cachekey  $host$url_cache_detail_default;
+
+	     	set $cachephantomkey "";
+
+	     	if ($numIdOffre){
+	     		set $cachephantomkey $numIdOffre;
+	     	}
+
+	     	if ($numIdOffre2){
+	     		set $cachephantomkey $numIdOffre2;
+	     	}
+
+	     	if ($arg_numIdOffre){
+	     		set $cachephantomkey $arg_numIdOffre;
+	     	}
+
+		    if ($http_user_agent ~* "apecbot") {
+				set $prerender 1;
+				set $proxycache "phantomcache";
+				set $cachekey "/phantom/detail/offre/$cachephantomkey";
+		    }
+		    if ($args ~ "_escaped_fragment_") {
+				set $prerender 1;
+				set $proxycache "phantomcache";
+				set $cachekey "/phantom/detail/offre/$cachephantomkey";
+		    }
+
+                    if ($host !~ ^(cadres|jd).*) {
+		    	set $prerender 0;
+				set $proxycache "webcache";
+				set $cachekey  $host$url_cache_detail_default;
+		    }
+
+	    	proxy_cache $proxycache;
+            proxy_hide_header Set-Cookie;
+         set $bypasscachejd 0;
+         if ($host ~ ^jd.*) {
+               set $bypasscachejd $prerender/1;
+         }
+         if ($bypasscachejd = "1/1"){
+            set $bypasscachejd 1;
+         }
+         proxy_cache_bypass $bypasscachejd;
+         proxy_no_cache $bypasscachejd;
+	    	proxy_cache_key  $cachekey;
+            ssi off;
+           	# Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 1 day
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 7d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Debug "Offers cache loc3";
+	    	#add_header X-Cache-Key $cachekey;
+	    	add_header X-UA-Compatible "IE=Edge";
+
+            # proxy pass to backendphantom
+	    	if ($prerender = 1) {
+			proxy_pass http://backendphantom/$scheme:///$host:9010/offres-emploi-cadres/0_0_0_$cachephantomkey;
+
+	    	}
+            proxy_pass http://backend$server_port;
+        }
+
+
+		location ~ ^(/home/login-get.html)$ {
+			access_log off;
+			proxy_pass http://backend$server_port;
+		}
+
+		# This section handles locations cached on a per user basis - RULE 5
+		location ~ ^(/cms/webservices/identification/cadre)$|^(/cms/webservices/identification/interlocuteur)$ {
+	    	set $extrakey "";
+	    	set $nocache 0;
+			if ($http_cookie ~ "(.*)(apec_activity_cookie=)([^;,]+)($|[;,])") {
+				set $nocache 1;
+				set $extrakey $cookie_JSESSIONID;
+			}
+	    	proxy_hide_header Set-Cookie;
+	    	proxy_no_cache $nocache;
+			proxy_cache_bypass $nocache;
+            proxy_cache authcache;
+            proxy_cache_key    $host$uri$is_args$args$extrakey;
+            proxy_cache_methods GET HEAD POST;
+            proxy_cache_valid    200 301 302 5m;
+            add_header X-Cache-Status $upstream_cache_status;
+	    	#add_header X-Cache-Key $host$uri$is_args$args$extrakey;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+            proxy_pass http://backend$server_port;
+		}
+
+
+
+		# rest services access - RULE 6
+		location ~ (^/cms/webservices/compteEtablissement/presentation/[\d]+$) {
+	    	# json data are ached in the rest cache
+            proxy_cache restcache;
+            access_log off;
+            # remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+	    	# the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+	    	# speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	    	# only cache GET and HEAD requests. Exclude POST request from cache process
+            proxy_cache_methods GET HEAD;
+		    # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+		    # They are cached for 1 day
+            proxy_cache_valid    200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Debug "Rest cache";
+	    	# if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+		# This section handles locations cached on a per user basis - RULE 5
+		location ~ ^/cms/webservices(/offre/public)$ {
+
+	    	# json data are ached in the rest cache
+            proxy_cache restcache;
+            # remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+	    	# the cache key does not include the host. Only the URI and its args
+            proxy_cache_key    $uri$is_args$args;
+	    	# speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	    	# only cache GET and HEAD requests. Exclude POST request from cache process
+            proxy_cache_methods GET HEAD;
+		    # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+		    # They are cached for 1 day
+            proxy_cache_valid    200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        #add_header X-Debug "Rest cache";
+	    	# if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+
+            proxy_pass http://backend$server_port;
+		 	proxy_intercept_errors on;
+			error_page 500 501 502 503 504 505 506 507 508 509 510 511 520 = @backendserviceFailOver;
+
+		}
+
+
+
+
+        # This section handles locations cached regardless of the user authentication status - RULE 7
+        # This section handles location cached only when the user is NOT authenticated
+		location ~ ^(/home/([^\/]+).html)|^(/home.html)|^(/Emploi/Ma-carriere)$|^(/Emploi/Observatoire-de-l-emploi)$|^(/Emploi-stage/Premier-job)$|^(/Emploi-stage/Observatoire-de-l-emploi)$|^(/Recrutement/Pratique-RH)$|^(/Recrutement/Observatoire-de-l-emploi)$|^(/Recrutement/Accueil)$|^(/Emploi-stage/Accueil-APEC)$|^(/Emploi/Accueil-APEC)$ {
+	    	# Jahia pages are cached in the web cache
+            proxy_cache webcache;
+	    	# if cookie set here, it means that we are not authenticated. So just remove it
+            proxy_hide_header Set-Cookie;
+            # the cache key include the host since pages on different hosts may have the same name
+            proxy_cache_key    $host$uri$is_args$args;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	    	# Authenticated users come back with the apec.user.cookie ou apec_activity_cookie cookies holding a value not empty
+	    	# when present pages are not retrieved from the cache. They are forwarded to the backend
+	    	# through the netscaler
+            set $nocache 0;
+			if ($http_cookie ~ "(.*)(apec_activity_cookie=)([^;,]+)($|[;,])") {
+				set $nocache 1;
+			}
+			proxy_no_cache $nocache;
+			proxy_cache_bypass $nocache;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 2 days
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 2d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        #add_header X-Debug "full cached 2";
+            # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+        # Pages editoriales - RULE 8
+        location ~ ^(/Presse/)|^(/Emploi/)|^(/Emploi-stage/)|^(/Recrutement/)|^(/Recrutement-Cadre/)|^(/home/menu/menu-([^\/]+).html) {
+            # Jahia pages are cached in the web cache
+            proxy_cache webcache;
+	    	# remove set-cookie header, you don't want everybody to share the same session
+	    	proxy_hide_header Set-Cookie;
+            # the cache key include the host since pages on different hosts may have the same name
+            # on ne prend pas les param comme cle pour les page edito
+			set $proxyKey $host$uri;
+	    	if ($uri ~* "/home/menu/.*"){
+				set $proxyKey $host$uri$is_args$args;
+	    	}
+            proxy_cache_key $proxyKey;
+            # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+            # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+            # They are cached for 1 day
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 2d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	    	#add_header X-Debug "full cached 2";
+            # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+
+        # Pages presentation entreprises sous cette forme /presentation-entreprise/1_317953___0_presentation-entreprise-nomentreprise.html  - RULE 9
+	        location ~ ^/presentation-entreprise/([\d]+)_([\d]+)_(.*)$ {
+	        # Jahia pages are cached in the web cache
+	        proxy_cache webcache;
+	        access_log off;
+		    # remove set-cookie header, you don't want everybody to share the same session
+		    proxy_hide_header Set-Cookie;
+	        # the cache key include the host since pages on different hosts may have the same name
+	        proxy_cache_key    $host/presentation-entreprise/$2;
+	        # speed up nginx by informing it that there is no service side include handling to do
+	        ssi off;
+	        # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+	        # They are cached for 30 days
+	        proxy_cache_methods GET HEAD;
+	        proxy_cache_valid    200 301 302 30d;
+	        add_header X-Cache-Status $upstream_cache_status;
+	        #add_header X-Handled-By $proxy_host/$upstream_addr;
+		    #add_header X-Debug "full cached 2";
+	        #add_header X-Cache-key-Pres $host/presentation-entreprise/$2;
+	        # if the resource is not cached forward request to netscaler on a specific port.
+	        # The netscaler will then forward to the correct redirector
+	        proxy_pass http://backend$server_port;
+        }
+
+        # Robots.txt - RULE 10
+        location ~ ^(/robots.txt)$ {
+        	set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+		    if ($host ~ ^recruteurs.*) { set $sitekey "recruteurs"; }
+		    if ($host ~ ^www.*) { set $sitekey "www"; }
+		    if ($host ~ ^presse.*) { set $sitekey "presse"; }
+		    if ($host ~ ^nousrejoindre.*) { set $sitekey "nousrejoindre"; }
+         	proxy_cache seocache;
+        	proxy_hide_header Set-Cookie;
+        	proxy_cache_key $host$uri;
+        	ssi off;
+        	proxy_cache_methods GET HEAD;
+	        proxy_cache_valid    200 301 302 30d;
+	        add_header X-Cache-Status $upstream_cache_status;
+ 			proxy_pass http://backend$server_port/files/live/sites/$sitekey/files/seo/robots.txt;
+ 		}
+
+        # sitemap-offres.xml - RULE 11
+        location ~ ^(/sitemap_offres_f08b0ec187dc856d0e0bfb60e622a216.xml.gz)$ {
+		set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+         	proxy_cache seocache;
+        	proxy_hide_header Set-Cookie;
+        	proxy_cache_key $host$uri;
+		set $action ".sitemapOffres.do?site=";
+        	ssi off;
+        	proxy_cache_methods GET HEAD;
+	        proxy_cache_valid    200 301 302 6h;
+	        add_header X-Cache-Status $upstream_cache_status;
+		add_header X-Robots-Tag "noindex";
+	        proxy_pass http://backend9011/$action$sitekey;
+        }
+
+        # sitemap-pages-sites.xml - RULE 12
+        location ~ ^(/sitemap_sites_apecSocle201587dc856d0exk2zr4.xml)$ {
+			set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+			if ($host ~ ^recruteurs.*) { set $sitekey "recruteurs"; }
+			if ($host ~ ^www.*) { set $sitekey "www"; }
+			if ($host ~ ^presse.*) { set $sitekey "presse"; }
+			if ($host ~ ^nousrejoindre.*) { set $sitekey "nousrejoindre"; }
+         	proxy_cache seocache;
+        	proxy_hide_header Set-Cookie;
+        	proxy_cache_key $host$uri;
+			set $action ".sitemapPages.do?site=";
+        	ssi off;
+        	proxy_cache_methods GET HEAD;
+	        proxy_cache_valid    200 301 302 12h;
+	        add_header X-Cache-Status $upstream_cache_status;
+			add_header X-Robots-Tag "noindex";
+	        proxy_pass http://backend9011/$action$sitekey;
+        }
+
+
+		# sitemap-new-sites.xml - RULE 13
+        location ~ ^(/sitemap_news_apecSocle201587dc856d0e0dfd5d4b.xml)$ {
+			set $sitekey "cadres";
+        	if ($host ~ ^jd.*) { set $sitekey "jd"; }
+			if ($host ~ ^recruteurs.*) { set $sitekey "recruteurs"; }
+			proxy_cache seocache;
+        	proxy_hide_header Set-Cookie;
+        	proxy_cache_key $host$uri;
+			set $action ".sitemapNews.do?site=";
+        	ssi off;
+        	proxy_cache_methods GET HEAD;
+	        proxy_cache_valid    200 301 302 30m;
+	        add_header X-Cache-Status $upstream_cache_status;
+			add_header X-Robots-Tag "noindex";
+	        proxy_pass http://backend9011/$action$sitekey;
+        }
+
+        # sitemap-offres.xml - RULE 14
+		location ~ ^(/sitemap_pagesperso_f08b0ec187dc856d0e0bfb60e622a217.xml.gz)$ {
+			proxy_cache seocache;
+			proxy_hide_header Set-Cookie;
+			proxy_cache_key $host$uri;
+			set $action ".sitemapPagesPerso.do";
+			ssi off;
+			proxy_cache_methods GET HEAD;
+			proxy_cache_valid    200 301 302 2d;
+			add_header X-Cache-Status $upstream_cache_status;
+			add_header X-Robots-Tag "noindex";
+			proxy_pass http://backend9011/$action;
+		}
+
+# sitemap-pagesperso.xml - RULE 14
+	location ~ ^(/sitemap_pagesperso_f08b0ec187dc856d0e0bfb60e622a217.xml.gz)$ {
+		proxy_cache seocache;
+		proxy_hide_header Set-Cookie;
+		proxy_cache_key $host$uri;
+		set $action ".sitemapPagesPerso.do";
+		ssi off;
+		proxy_cache_methods GET HEAD;
+		proxy_cache_valid    200 301 302 2d;
+		add_header X-Cache-Status $upstream_cache_status;
+		add_header X-Robots-Tag "noindex";
+		proxy_pass http://backend9011/$action;
+	}
+
+# autocompletion services access
+	    location ~ (^/cms/webservices/autocompletion/autocomplete$){
+	        # json data are cached in the autocompletion cache
+            proxy_cache autocompletioncache;
+            proxy_hide_header Set-Cookie;
+	        proxy_cache_key    $uri$is_args$args;
+	        # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	        # only cache GET and HEAD requests. Exclude POST request from cache process
+            proxy_cache_methods GET HEAD;
+	        # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+	        # They are cached for 30 days
+            proxy_cache_valid    200 301 302 30d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        #add_header X-Debug "Autocompletion cache";
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+        }
+# lieuautocompletion services access
+	location ~ (^/cms/webservices/autocompletion/lieuautocomplete$){
+                # json data are cached in the lieuAutocompletion cache
+             proxy_cache lieuautocompletioncache;
+             proxy_hide_header Set-Cookie;
+                #proxy_cache_key    $uri$is_args$args;
+                # speed up nginx by informing it that there is no service side include handling to do
+             ssi off;
+                # only cache GET and HEAD requests. Exclude POST request from cache process
+             proxy_cache_methods GET HEAD;
+                # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+                # They are cached for 30 days
+             proxy_cache_valid    200 301 302 30d;
+             add_header X-Cache-Status $upstream_cache_status;
+             #add_header X-Handled-By $proxy_host/$upstream_addr;
+                #add_header X-Debug "Lieu Autocompletion cache";
+                # if the resource is not cached forward request to netscaler on a specific port.
+             # The netscaler will then forward to the correct redirector
+                     rewrite ^/cms/webservices/(.*)$ /suggestion-server/rest/$1 break;
+                     proxy_pass http://solaff;
+         }
+
+        # referentielstatique services access
+	    location ~ (^/cms/webservices/referentielstatique/visuel$){
+	        # json data are cached in the referentielstatique cache
+            proxy_cache referentielstatiquecache;
+            proxy_hide_header Set-Cookie;
+	        proxy_cache_key    $uri$is_args$args;
+	        # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	        # only cache GET and HEAD requests. Exclude POST request from cache process
+            proxy_cache_methods GET HEAD;
+	        # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+	        # They are cached for 30 days
+            proxy_cache_valid    200 301 302 30d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        #add_header X-Debug "ReferentielStatique cache";
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+#                        return 404;
+        }
+
+		     # autoconsommable services access
+	    location ~ (^/cms/webservices/autoconsommable){
+	        # json data are cached in the autoconsommable cache
+            proxy_cache autoconsommablecache;
+            proxy_hide_header Set-Cookie;
+	        proxy_cache_key    $uri$request_body;
+	        # speed up nginx by informing it that there is no service side include handling to do
+            ssi off;
+	        # only cache POST requests.
+            proxy_cache_methods POST;
+	        # Only successfull calls to the backends will be cached (HTTP codes 200 / 301 / 302)
+	        # They are cached for 90 days
+            proxy_cache_valid    200 90d;
+            add_header X-Cache-Status $upstream_cache_status;
+            #add_header X-Handled-By $proxy_host/$upstream_addr;
+	        add_header X-Debug "autoconsommable cache";
+	        # if the resource is not cached forward request to netscaler on a specific port.
+            # The netscaler will then forward to the correct redirector
+            proxy_pass http://backend$server_port;
+#                        return 404;
+        }
+
+
+		# proxy flux rss - RULE 14
+        location ~ ^(/.fluxRssProxy.do)$ {
+			proxy_cache webcache;
+	    	proxy_hide_header Set-Cookie;
+	    	proxy_cache_key $host$uri$is_args$args;
+            ssi off;
+            # They are cached for 1 day
+            proxy_cache_methods GET HEAD;
+            proxy_cache_valid    200 301 302 1d;
+            add_header X-Cache-Status $upstream_cache_status;
+            proxy_pass http://backend$server_port;
+        }
+
+		# /cms/login can only be accessed in POST
+		location ~* ^(/cms/login) {
+			if ($request_method != POST){
+				rewrite (.*) "https://$host" permanent;
+			}
+			proxy_pass http://backend$server_port;
+		}
+
+     		location ~* ^(/sites/cadres/messages.html)|^(/cms/webservices/campus/allStageNumber)|^(/cms/webservices/cookie/setCookieWarning) {
+		access_log off;
+		ssi off;
+		proxy_pass http://backend$server_port;
+    		}
+
+                # admin pages are protected - only /cms/webservices et live rendering can be accessed
+		location ~* ^(/start)|^(/tools)|^(/cms)|^(/engines)|^(/gwt)|^(/welcome)|^(/validateTicket)|^(/repository)|^(/rmi)|^(/server)|^(/initializationCompleted)|^(/PlutoInvoker){
+                ssi off;
+	    	if ($uri !~* "/cms/webservices|/cms/render/live|/cms/captcha" ) {
+				rewrite (.*) "https://$host" permanent;
+	    	}
+	     	proxy_pass http://backend$server_port;
+        	}
+
+
+
+		# Any other location is just forwarded t the right backend through the netscaler - RULE 14
+		location / {
+		   add_header X-Cache-Status "BYPASS";
+		   ssi off;
+		   proxy_pass http://backend$server_port;
+		}
+
+
+    }
+
+       server {
+
+	 listen       9008;
+
+	 location /healthbackend9010 {
+	   proxy_pass http://backend9010/ping.jsp;
+           health_check interval=10s fails=1 passes=5 uri=/ping.jsp match=cms_ok;
+          }
+	  location /healthbackend9011 {
+	   proxy_pass http://backend9011/ping.jsp;
+           health_check interval=10s fails=1 passes=5 uri=/ping.jsp match=cms_ok;
+          }
+	  location /healthbackend8081 {
+	   proxy_pass http://backend8081/ping.jsp;
+           health_check interval=10s fails=1 passes=5 uri=/ping.jsp match=cms_ok;
+          }
+	  location /healthbackendphantom5000 {
+	   proxy_pass http://backendphantom;
+           health_check interval=10s fails=1 passes=5 uri=/ match=phantom_ok;
+          }
+	  location /healthbackendoffres9010 {
+	   proxy_pass http://backendoffres9010;
+           health_check interval=10s fails=1 passes=5 uri=/rest-server/ match=services_ok;
+          }
+}
+
+     # MCO_SI_03-2016-S3
+     server {
+                status_zone static_backend_9030;
+
+                # Site static flipbook
+                listen       9030;
+                location / {
+                         root /static/sites/flipbook;
+                }
+     }
+     # FIN MCO_SI_03-2016-S3
+
+
+    server {
+
+		status_zone static_backend_9020;
+
+		# Site static histoire de liens - le NS redirige vers le port 9020
+		listen       9020;
+		location / {
+			root /static/sites/histoiredeliens;
+		}
+	}
+
+
+
+server {
+	server_name iphone.apec.fr;
+	return 301 https://www.apec.fr/home/apec-landing-page.html;
+}
+
+server {
+    listen 8080;
+    root /usr/share/nginx/html;
+
+    # Redirect requests for / to /status.html
+    location = / {
+        return 301 /status.html;
+    }
+
+    location = /status.html { }
+
+    # Everything beginning with /status (except for /status.html) is
+    # processed by the status handler
+    location /status {
+        status;
+    }
+}
+
+}
+
+
+

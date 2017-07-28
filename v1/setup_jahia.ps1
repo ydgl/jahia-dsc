@@ -74,7 +74,7 @@
 .PARAMETER BO_APEC_FR
     Indique que la configuration concerne le backoffice du Apec.fr ($true)
     Le BO_APEC_FR écrit dans le JCR et pilote la mise à jour du cache
-    La notion de la responsabilité foncitonnel (Backoffice / Frontoffice Apec.fr) est souvent aligné avec l'architecture du cluster.
+    La notion de la responsabilité fonctionnelle (Backoffice / Frontoffice Apec.fr) est souvent aligné avec l'architecture du cluster.
     Dans un cluster il y a un seul processing node (MASTER) et des "Slaves". On parle souvent de MASTER du cluster pour désigner le BO CMS Apec.fr.
     Quand il n'y a qu'un CMS dans les environnement projet, le même CMS sert le besoin de BO et de FO (et il n'y a pas de cluster).
 
@@ -84,9 +84,9 @@
         Configuration / Reconfiguration d'Apec.fr lorsqu'il s'agit d'une instance qui fait BO de contribution
 
 .EXAMPLE
-        setup_jahia.ps1 -INST_FROM_CLONE -COULOIR rec1
+        setup_jahia.ps1 -INST_FROM_CLONE -COULOIR rec1 -BO_APEC_FR True
         Clonage d'un JAHIA
-        Ici on reconfigure le JAHIA pour qu'il fonctionne sur un environnement que l'on installe sur REC1
+        Ici on reconfigure le JAHIA pour qu'il fonctionne sur l'environnement REC1, comme la plupart du temps les instance projets sont des MASTER (d'où "-BO_APEC_FR True")
 
 .EXAMPLE
         setup_jahia.ps1 -COULOIR prod -FILE_CONF_FOLDER c:\Jahia\config_file
@@ -443,7 +443,7 @@ if ($INST_JAHIA_HOME) {
     Copy-Item -Recurse -Force "$JAHIA_HOME\tomcat\webapps\ROOT" "$CATALINA_HOME\webapps"
     Write-Host "done" -f Green
 
-    Remove-Item -Recurse -Force -ErrorAction:SilentlyContinue "$JAHIA_HOME\tomcat"
+    Remove-Item -Recurse -Force -ErrorAction:Continue "$JAHIA_HOME\tomcat"
 
     Write-Host "FIN Reconfiguration de tomcat"
 
@@ -508,21 +508,21 @@ if ($INST_FROM_CLONE) {
 
     # Clean copy of JAHIA ____________________________________________________
     Write-Host "- Remove logs ... " -NoNewline
-    Clear-JahiaLog
+    Clear-JahiaTmpFile
     Write-Host "done" -f Green
 
     Write-Host "- Remove tomcat work ... " -NoNewline
     Remove-Item -Recurse -Force $CATALINA_HOME\Work\Catalina
     Write-Host "done" -f Green
 
-    Write-Host "- Suppression $JAHIA_HOME\digital-config-data\repository\workspaces\default\lock ... " -NoNewline
-    if (Test-Path $JAHIA_HOME\digital-config-data\repository\workspaces\default\lock) {
-        Remove-Item -Recurse -Force $JAHIA_HOME\digital-config-data\repository\workspaces\default\lock
+    Write-Host "- Suppression $JAHIA_HOME\digital-factory-data\repository\workspaces\default\lock ... " -NoNewline
+    if (Test-Path $JAHIA_HOME\digital-factory-data\repository\workspaces\default\lock) {
+        Remove-Item -Recurse -Force $JAHIA_HOME\digital-factory-data\repository\workspaces\default\lock
     }
     Write-Host "done" -f Green
-    Write-Host "- Suppression $JAHIA_HOME\digital-config-data\repository\workspaces\live\lock ... " -NoNewline
-    if (Test-Path $JAHIA_HOME\digital-config-data\repository\workspaces\live\lock) {
-        Remove-Item -Recurse -Force $JAHIA_HOME\digital-config-data\repository\workspaces\live\lock
+    Write-Host "- Suppression $JAHIA_HOME\digital-factory-data\repository\workspaces\live\lock ... " -NoNewline
+    if (Test-Path $JAHIA_HOME\digital-factory-data\repository\workspaces\live\lock) {
+        Remove-Item -Recurse -Force $JAHIA_HOME\digital-factory-data\repository\workspaces\live\lock
     }
 
     # Index files are not cleaned (see fine tuning documentation for explanation).
@@ -532,16 +532,17 @@ if ($INST_FROM_CLONE) {
     # Reconfigure copy _______________________________________________________
     # Cette opération est nécessaire en cas de copie de la prod
     Write-Host "Copie de la clé de licence"
-    Write-Host "  $PSScriptRoot\system\license.xml --> $JAHIA_HOME\digital-config-data\jahia\ ... " -NoNewline
-    Copy-Item -Recurse -Force "$PSScriptRoot\system\license.xml" "$JAHIA_HOME\digital-config-data\jahia\"
+    Write-Host "  $PSScriptRoot\system\license.xml --> $JAHIA_HOME\digital-factory-config\jahia\ ... " -NoNewline
+    Copy-Item -Recurse -Force -ErrorAction:Continue "$PSScriptRoot\system\license.xml" "$JAHIA_HOME\digital-factory-config\jahia\"
     Write-Host "done" -f Green
 
-
+    
     Write-Host "La reconfiguration suite au clonage se poursuit aprés le démarrage de JAHIA"
 }
 
 
 if ($INST_FROM_CLONE -or $INST_JAHIA_HOME) {
+
 
     # Configure LDAP access  _________________________________________________
     Write-Host "Configuration de l'accès LDAP ... " -NoNewline
@@ -557,6 +558,7 @@ if ($INST_FROM_CLONE -or $INST_JAHIA_HOME) {
     Write-Host "Import CA_APEC_RECETTE (si installation sur environnement projet, pour la prod ce certificat est inutile) ... "
     Write-Host "Dans une fenetre CMD entrez la commande suivante ..."
     Write-Host "$env:JAVA_HOME\jre\bin\keytool.exe" -keystore $env:JAVA_HOME\jre\lib\security\cacerts -import -file .\system\ca.apec.fr.crt -alias CA_APEC_RECETTE -noprompt -storepass changeit | Out-Null
+    Write-Host "$env:JAVA_HOME\jre\bin\keytool.exe" -keystore $env:JAVA_HOME\jre\lib\security\cacerts -import -file .\system\anakrys-recette-autosign.cer -alias ANAKRYS_RECETTE_AUTOSIGN -noprompt -storepass changeit | Out-Null
     Write-Host ""
 
          
@@ -572,6 +574,12 @@ if ($INST_FROM_CLONE -or $INST_JAHIA_HOME) {
     Write-Host "- Reconfiguration $PSScriptRoot\system\server.xml --> $CATALINA_HOME\conf\ ... " -NoNewline
     Copy-Item -Recurse -Force "$PSScriptRoot\system\server.xml" "$CATALINA_HOME\conf\"
     Write-Host "done" -f Green
+    Write-Host "- Reconfiguration $PSScriptRoot\system\web.xml --> $CATALINA_HOME\conf\ ... " -NoNewline
+    Copy-Item -Recurse -Force "$PSScriptRoot\system\web.xml" "$CATALINA_HOME\conf\"
+    Write-Host "done" -f Green
+    Write-Host "- Reconfiguration $PSScriptRoot\system\context.xml --> $CATALINA_HOME\conf\ ... " -NoNewline
+    Copy-Item -Recurse -Force "$PSScriptRoot\system\context.xml" "$CATALINA_HOME\conf\"
+    Write-Host "done" -f Green
 
     # Patch des lib OJDBC ____________________________________________________
     Write-Host "DEBUT Reconfiguration du connecteur oracle installé dans $CATALINA_HOME"
@@ -582,10 +590,10 @@ if ($INST_FROM_CLONE -or $INST_JAHIA_HOME) {
     Copy-Item -Recurse -Force "$PSScriptRoot\system\ojdbc7-12.1.0.2.jar" "$CATALINA_HOME\lib"
     Write-Host "done" -f Green
     Write-Host "- Remove $CATALINA_HOME\lib\orai18n-12.1.0.1.jar  (livré avec JAHIA) ... " -NoNewline
-    Remove-Item -Recurse -Force -ErrorAction:SilentlyContinue $CATALINA_HOME\lib\orai18n-12.1.0.1.jar
+    Remove-Item -Recurse -Force -ErrorAction:Continue $CATALINA_HOME\lib\orai18n-12.1.0.1.jar
     Write-Host "done" -f Green
     Write-Host "- Remove $CATALINA_HOME\lib\ojdbc6-12.1.0.1.jar  (livré avec JAHIA) ... " -NoNewline
-    Remove-Item -Recurse -Force -ErrorAction:SilentlyContinue $CATALINA_HOME\lib\ojdbc6-12.1.0.1.jar
+    Remove-Item -Recurse -Force -ErrorAction:Continue $CATALINA_HOME\lib\ojdbc6-12.1.0.1.jar
     Write-Host "done" -f Green
     Write-Host "FIN Reconfiguration du connecteur oracle"
 
@@ -632,10 +640,11 @@ if ($INPUT_COULOIR  -ne "") {
 
 
 
-    # Suppression de l'utilisation des option d'environnement en doublon avec setenv.bat
-    # Set-Env "CATALINA_OPTS" "-DapecConfiguration=$JAHIA_HOME\digital-factory-config\jahia\jahia-modules-apec.properties" -Scope "User"
-
-
+    # Patch JAHIA en cas de perte de session du backoffice ___________________
+    # La conséquence : des publications invalide (donc un JCR) en français
+    # MCO_SI-23820
+    Write-Host "Patch de la JIRA MCO_SI-23820 (bug jahia)"
+    Copy-FileConf "$PSScriptRoot\template\manager.jsp" "$CATALINA_HOME\webapps\ROOT\engines\manager.jsp"
 
     # Change jahia properties ________________________________________________
     if (Edit-FileConf "$JAHIA_HOME\digital-factory-config\jahia\jahia.properties" UTF8 "PROPERTIES") {
@@ -797,7 +806,7 @@ if ($INPUT_COULOIR  -ne "") {
 
         # Change log configuration ___________________________________________
         Write-Host "- (host_mode) Change logfile configuration  ... " -NoNewline
-        Remove-Item -Recurse -Force -ErrorAction:SilentlyContinue "$JAHIA_HOME\digital-factory-config\jahia\log4j.xml"
+        Remove-Item -Recurse -Force -ErrorAction:Continue "$JAHIA_HOME\digital-factory-config\jahia\log4j.xml"
         Write-Host "done" -f Green
 
 
@@ -806,11 +815,11 @@ if ($INPUT_COULOIR  -ne "") {
             Write-Host "- (host_mode) $JAHIA_HOME\tomcat est déjà un lien symbolique vers $CATALINA_HOME : aucune modification"
             Write-Host "    (Supprimer le lien symbolique pour le recréer si besoin)"
         } else {
-            Remove-Item -Recurse -Force -ErrorAction:SilentlyContinue "$JAHIA_HOME\tomcat"
+            Remove-Item -Recurse -Force -ErrorAction:Continue "$JAHIA_HOME\tomcat"
             New-SymLink "$JAHIA_HOME\tomcat" "$CATALINA_HOME"
         }
-        Copy-Item -ErrorAction:SilentlyContinue $PSScriptRoot\template\startDigitalFactory.bat $JAHIA_HOME
-        Copy-Item -ErrorAction:SilentlyContinue $PSScriptRoot\template\stopDigitalFactory.bat $JAHIA_HOME
+        Copy-Item -ErrorAction:Continue $PSScriptRoot\template\startDigitalFactory.bat $JAHIA_HOME
+        Copy-Item -ErrorAction:Continue $PSScriptRoot\template\stopDigitalFactory.bat $JAHIA_HOME
     
         # Configure hosts file _______________________________________________
         Write-Host "- (host_mode) Configuration host ... " -NoNewline
@@ -858,8 +867,9 @@ if ($INST_FROM_CLONE) {
 
 
     # Stop Jahia
-    Write-Host ''
-    Write-Host "Merci de démarrer JAHIA complètement"  -f Red -b White
+    Write-Host "Afin de terminer le clonage :"   -f Red -b White
+    Write-Host " 1 - Vérifier que les configurations de noeud et de cluster sont OK (surtout si on clone la prod vers un env projet)"   -f Red -b White
+    Write-Host " 2 - Merci de démarrer JAHIA complètement"  -f Red -b White
     pause
     #Start-Jahia
     Write-Host ''

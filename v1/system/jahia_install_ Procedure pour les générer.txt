@@ -1,0 +1,30 @@
+Les fichier xml définisse un template
+
+jahia_install_derby.template.xml
+(Lorsque rien n'est indiqué, faite ce que vous voulez)
+- Lancer l'installer jahia
+- Noter le chemin d'installation (étape 3 normalement)
+- Choisissez l'installation personnalisée / avancée
+- Décocher l'installation de tomcat embarqué et pointer l'installation sur tomcat
+- Choisir un SGBD embarqué derby
+- Choisir configurer le LDAP, et le mode développement à l'étape 13 (ne pas activer le cluster)
+- Ne pas configurer le LDAP à l'étape 15
+- Choisir le fichier de licence à l'étape 20
+- Lancer l'install à l'étape 23
+- A l'étape 24 ne pas installer les raccourcis
+- L'étape 27 : sauvegarder le fichier XML (cliquer sur "générer un script d'installation automatisé")
+- Avec Notepad ouvrir le fichier xml que l'on a généré à l'étape précédente
+  - Dans ce fichier : 
+        remplacer les chemins d'install JAHIA par la clé "JAHIA_HOME" (il y en a plusieurs)
+        vérifier que tous les login / passwords sont bien ceux par défaut
+        remplacer le chemin d'install de la clé de license par "SCRIPT_ROOT\system\license.xml" (checker l'ancien fichier d'install pour voir comment c'était fait)
+        
+        
+
+
+
+
+jahia_install_oracle.template.xml
+- Lancer l'installer
+- selectionner 
+

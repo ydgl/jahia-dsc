@@ -13,9 +13,9 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_username'='INT1_JAHIA';
                 'db_password'='INT1_JAHIA';
                 'db_url'='jdbc:oracle:thin:@scsdrst01.dapec.internaluse:1521:INTSOCLE';
-                'jahia_cred'=@('root', 'socle2015');
+                'jahia_cred'=@('root', 'monpassword');
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
         }
 
@@ -24,9 +24,9 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_username'='INT2_JAHIA';
                 'db_password'='INT2_JAHIA';
                 'db_url'='jdbc:oracle:thin:@scsdrst01.dapec.internaluse:1521:INTSOCLE';
-                'jahia_cred'=@('root', 'socle2015');
+                'jahia_cred'=@('root', 'monpassword');
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
         }
 
@@ -35,9 +35,9 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_username'='REC1_JAHIA';
                 'db_password'='REC1_JAHIA';
                 'db_url'='jdbc:oracle:thin:@scsdrst01.dapec.internaluse:1521:RECSOCLE';
-                'jahia_cred'=@('root', 'socle2015');
+                'jahia_cred'=@('root', 'monpassword');
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
         }
 
@@ -46,9 +46,9 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_username'='HOM1_JAHIA';
                 'db_password'='HOM1_JAHIA';
                 'db_url'='jdbc:oracle:thin:@scsdrst01.dapec.internaluse:1521:HOMSOCLE';
-                'jahia_cred'=@('root', 'socle2015');
+                'jahia_cred'=@('root', 'monpassword');
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
         }
 
@@ -59,7 +59,7 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_url'='jdbc:derby:directory:jahia;create=true';
                 'jahia_cred'=@('root', 'root');
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
 
         }
@@ -72,7 +72,7 @@ function Get-Conf( [string] $computer_name = $env:COMPUTERNAME){
                 'db_url'=$non_value;
                 'jahia_cred'=@($non_value, $non_value);
                 'tools_login'='jahia';
-                'tools_password'='socle2015';
+                'tools_password'='monpassword';
             }
 
 

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<AutomatedInstallation langpack="fra">
+<com.izforge.izpack.panels.HelloPanel id="UNKNOWN (com.izforge.izpack.panels.HelloPanel)"/>
+<com.izforge.izpack.panels.LicencePanel id="UNKNOWN (com.izforge.izpack.panels.LicencePanel)"/>
+<com.izforge.izpack.panels.TargetPanel id="UNKNOWN (com.izforge.izpack.panels.TargetPanel)">
+<installpath>JAHIA_HOME</installpath>
+</com.izforge.izpack.panels.TargetPanel>
+<com.izforge.izpack.panels.UserInputPanel id="installType">
+<userInput>
+<entry key="installation.type" value="advanced"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.PacksPanel id="packsPanel">
+<pack index="0" name="jahia" selected="true"/>
+<pack index="1" name="tomcat" selected="false"/>
+</com.izforge.izpack.panels.PacksPanel>
+<com.izforge.izpack.panels.UserInputPanel id="serverType">
+<userInput>
+<entry key="server.type" value="tomcat"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="dbMode">
+<userInput>
+<entry key="dbSettings.mode" value="embedded"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="dbType">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="dbTypeMySQL">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="dbSettings">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="webApp">
+<userInput>
+<entry key="jahiaManager.password" value="monpassword"/>
+<entry key="jahiaManager.username" value="jahia"/>
+<entry key="jahia.war.contextName" value=""/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="appServer">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="operatingMode">
+<userInput>
+<entry key="operatingMode" value="development.core"/>
+<entry key="operatingMode.configure.cluster" value="false"/>
+<entry key="operatingMode.configure.ldap" value="true"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="ldap">
+<userInput>
+<entry key="ldap.users.baseDn" value=""/>
+<entry key="ldap.groups.baseDn" value=""/>
+<entry key="ldap.users.credentials" value=""/>
+<entry key="ldap.users.url" value="ldap://127.0.0.1:389/"/>
+<entry key="ldap.users.principal" value=""/>
+<entry key="ldap.groups.principal" value=""/>
+<entry key="ldap.groups.url" value="ldap://127.0.0.1:389/"/>
+<entry key="ldap.groups.credentials" value=""/>
+<entry key="ldap.advanced" value="false"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="cluster">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="superUser">
+<userInput>
+<entry key="superUser.password" value="monpassword"/>
+<entry key="superUser.firstname" value=""/>
+<entry key="superUser.lastname" value=""/>
+<entry key="superUser.email" value=""/>
+<entry key="superUser.preferredLang" value="fr"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="mailSettings">
+<userInput>
+<entry key="mailSettings.server" value=""/>
+<entry key="mailSettings.from" value=""/>
+<entry key="mailSettings.administrator" value=""/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="studioToolSettings">
+<userInput>
+<entry key="studioToolSettings.svnPath" value="svn"/>
+<entry key="studioToolSettings.mvnPath" value="mvn"/>
+<entry key="studioToolSettings.gitPath" value="git"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="externalToolSettings">
+<userInput>
+<entry key="dmConfig.imagemagickPath" value=""/>
+<entry key="dmConfig.officePath" value=""/>
+<entry key="dmConfig.validate" value="true"/>
+<entry key="dmConfig.ffmpegPath" value=""/>
+<entry key="dmConfig.pdf2swfPath" value=""/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="additionalSettings">
+<userInput>
+<entry key="defaultLanguageCode" value="fr"/>
+<entry key="additionalModulesPath" value=""/>
+<entry key="licensePath" value="SCRIPT_ROOT\system\license.xml"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.UserInputPanel id="externalizedConfig">
+<userInput>
+<entry key="externalizedConfigTargetPath" value="JAHIA_HOME\digital-factory-config"/>
+<entry key="data.dir" value="JAHIA_HOME\digital-factory-data"/>
+</userInput>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.SummaryPanel id="UNKNOWN (com.izforge.izpack.panels.SummaryPanel)"/>
+<com.izforge.izpack.panels.ExtendedInstallPanel id="UNKNOWN (com.izforge.izpack.panels.ExtendedInstallPanel)"/>
+<com.izforge.izpack.panels.ShortcutPanel id="shortcutPanel"/>
+<com.izforge.izpack.panels.UserInputPanel id="afterInstall">
+<userInput/>
+</com.izforge.izpack.panels.UserInputPanel>
+<com.izforge.izpack.panels.ProcessPanel id="UNKNOWN (com.izforge.izpack.panels.ProcessPanel)"/>
+<com.izforge.izpack.panels.FinishPanel id="UNKNOWN (com.izforge.izpack.panels.FinishPanel)"/>
+</AutomatedInstallation>
